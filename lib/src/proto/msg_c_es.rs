@@ -8763,19 +8763,6 @@ pub enum EExploreEventType {
     DIALOG_CHOOSE = 2,
     CHOOSE = 3,
     ROLL = 4,
-    FIGHT = 5,
-    ITEM = 6,
-    PLOT = 7,
-    PROPERTY = 8,
-    CHANGE = 9,
-    TEXT = 10,
-    TASK = 11,
-    GUIDANCE = 13,
-    GRID = 14,
-    NPC = 15,
-    TRANSPORT = 16,
-    CAMERA = 17,
-    ALTER = 18,
 }
 
 impl ::protobuf::ProtobufEnum for EExploreEventType {
@@ -8789,20 +8776,6 @@ impl ::protobuf::ProtobufEnum for EExploreEventType {
             1 => ::std::option::Option::Some(EExploreEventType::DIALOG),
             2 => ::std::option::Option::Some(EExploreEventType::DIALOG_CHOOSE),
             3 => ::std::option::Option::Some(EExploreEventType::CHOOSE),
-            4 => ::std::option::Option::Some(EExploreEventType::ROLL),
-            5 => ::std::option::Option::Some(EExploreEventType::FIGHT),
-            6 => ::std::option::Option::Some(EExploreEventType::ITEM),
-            7 => ::std::option::Option::Some(EExploreEventType::PLOT),
-            8 => ::std::option::Option::Some(EExploreEventType::PROPERTY),
-            9 => ::std::option::Option::Some(EExploreEventType::CHANGE),
-            10 => ::std::option::Option::Some(EExploreEventType::TEXT),
-            11 => ::std::option::Option::Some(EExploreEventType::TASK),
-            13 => ::std::option::Option::Some(EExploreEventType::GUIDANCE),
-            14 => ::std::option::Option::Some(EExploreEventType::GRID),
-            15 => ::std::option::Option::Some(EExploreEventType::NPC),
-            16 => ::std::option::Option::Some(EExploreEventType::TRANSPORT),
-            17 => ::std::option::Option::Some(EExploreEventType::CAMERA),
-            18 => ::std::option::Option::Some(EExploreEventType::ALTER),
             _ => ::std::option::Option::None
         }
     }
@@ -8814,19 +8787,6 @@ impl ::protobuf::ProtobufEnum for EExploreEventType {
             EExploreEventType::DIALOG_CHOOSE,
             EExploreEventType::CHOOSE,
             EExploreEventType::ROLL,
-            EExploreEventType::FIGHT,
-            EExploreEventType::ITEM,
-            EExploreEventType::PLOT,
-            EExploreEventType::PROPERTY,
-            EExploreEventType::CHANGE,
-            EExploreEventType::TEXT,
-            EExploreEventType::TASK,
-            EExploreEventType::GUIDANCE,
-            EExploreEventType::GRID,
-            EExploreEventType::NPC,
-            EExploreEventType::TRANSPORT,
-            EExploreEventType::CAMERA,
-            EExploreEventType::ALTER,
         ];
         values
     }
