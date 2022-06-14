@@ -75,7 +75,7 @@ pub struct AsyncThisChannel<T, E, R, S: Sized + Debug + Send + Sync + 'static + 
 impl<T, E, R, S: Sized + Debug + Send + Sync + 'static + TransferTemplate> AsyncThisChannel<T, E, R, S> where T: AsyncServiceChannel<E,R, S> + 'static, E: 'static + Send, R: AsyncServiceDataHandler<E> + std::marker::Send{
     pub fn new(rx: tokio::sync::mpsc::UnboundedReceiver<AsyncSessionHandler<S>>, worker_count: usize) -> Self{
         Self{
-            runtime: tokio::runtime::Builder::new_multi_thread().worker_threads(worker_count).enable_all().build().expect("fail to async channer service runtime"),
+            runtime: tokio::runtime::Builder::new_multi_thread().worker_threads(worker_count).enable_all().build().expect("fail to create async channel service runtime"),
             state: ChannelServiceState::Normal,
             session_map: Default::default(),
             new_session_handler: rx,
@@ -128,7 +128,7 @@ impl<T, E, R, S: Sized + Debug + Send + Sync + 'static + TransferTemplate> Async
         }
         Ok(())
     }
-    ///像会话channel发送消息
+    ///向会话channel发送消息
     fn deal_channel_msg(&mut self, channel_id: usize, msg: SessionTransport<S>)-> anyhow::Result<()>{
         if let SessionTransportType::Disconnect = msg.transport{
             self.session_map.remove(&channel_id);

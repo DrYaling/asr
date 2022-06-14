@@ -113,6 +113,7 @@ macro_rules! lock_unwrap {
 ///         println!("lock_map value {}",v.value);
 ///
 ///     }).ok();
+/// ```
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! lock_map {
@@ -136,28 +137,6 @@ macro_rules! lock_map {
                 > = Ok(());
                 ret
             }
-        }
-    }};
-}
-///三目运算
-///
-/// 用法
-///
-///```
-///     let cond: Option<bool> = None;
-///
-///     let result = if_then_or!(cond.is_some(),"有值","没有值");
-///
-///     println!("result is {}",result); //result is 没有值
-/// ```
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! if_then_or {
-    ($condition:expr,$first:expr,$second:expr) => {{
-        if $condition {
-            $first
-        } else {
-            $second
         }
     }};
 }
@@ -194,21 +173,20 @@ macro_rules! if_else {
 #[macro_export]
 macro_rules! logthrow {
     ($e: expr, $out: expr) => {{
-        #[cfg(not(test))]
         if cfg!(not(test)){
-            log_error!("unexpected error {:?}",$e);
+            log_error!("error {:?}",$e);
         }
-        if cfg!(test){
-            println!("unexpected error {:?} at file {} line {}",$e,file!(),line!());
+        else{
+            println!("error {:?} at file {} line {}",$e,file!(),line!());
         }
         $out
     }};
     ($e: expr, $msg: expr, $out: expr) => {{
         if cfg!(not(test)){
-            log_error!("unexpected error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
+            log_error!("error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
         }
-        if cfg!(test){
-            println!("unexpected error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
+        else{
+            println!("error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
         }
         $out
     }};
@@ -224,21 +202,20 @@ macro_rules! logthrow {
 #[macro_export]
 macro_rules! logout {
     ($e: expr) => {{
-        #[cfg(not(test))]
         if cfg!(not(test)){
-            log_error!("unexpected error {:?}",$e);
+            log_error!("error {:?}",$e);
         }
-        if cfg!(test){
-            println!("unexpected error {:?} at file {} line {}",$e,file!(),line!());
+        else{
+            println!("error {:?} at file {} line {}",$e,file!(),line!());
         }
         $e
     }};
     ($e: expr, $msg: expr) => {{
         if cfg!(not(test)){
-            log_error!("unexpected error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
+            log_error!("error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
         }
-        if cfg!(test){
-            println!("unexpected error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
+        else{
+            println!("error {:?}-{:?} at file {} line {}",$e,$msg,file!(),line!());
         }
         $e
     }};
@@ -247,13 +224,12 @@ macro_rules! logout {
 macro_rules! log_if_err {
     ($e: expr) => {{
         let error = $e;
-        #[cfg(not(test))]
         if cfg!(not(test)){
             if let Err(err) = &error{
                 log_error!("unexpected error {:?}", err);
             }
         }
-        if cfg!(test){
+        else{
             println!("unexpected error {:?} at file {} line {}",error,file!(),line!());
         }
         error
@@ -265,7 +241,7 @@ macro_rules! log_if_err {
                 log_error!("unexpected error {:?}-{:?} at file {} line {}",error,$msg,file!(),line!());
             }
         }
-        if cfg!(test){
+        else{
             println!("unexpected error {:?}-{:?} at file {} line {}",error,$msg,file!(),line!());
         }
         error

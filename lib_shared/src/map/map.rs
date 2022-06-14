@@ -8,22 +8,18 @@ use super::Point2;
 const MAX_MAP_WIDTH: usize = 400;
 ///最大地图id
 pub const MAX_MAP_ID: usize = MAX_MAP_WIDTH * MAX_MAP_WIDTH + MAX_MAP_WIDTH + MAX_MAP_WIDTH;
-const DIRS: [Point2;6] = [
+const DIRS: [Point2; 4] = [
+    Point2::new(0, 0),
     Point2::new(1, 0),
-    Point2::new(1, -1),
-    Point2::new(0, -1),
-    Point2::new(-1, 0),
-    Point2::new(-1, 1),
-    Point2::new(0, 1)
+    Point2::new(0, 1),
+    Point2::new(1, 1)
 ];
 ///获取一个点周围的几个点
 pub fn ring(center: Point2, radius: usize) -> Vec<Point2>{
     let mut r = Vec::new();
     let mut point = center + DIRS[4] * radius;
-    let height = center.height as i32;
-    for i in 0..6 {
+    for i in 0..4 {
         for _j in 0..radius {
-            point.state = (point.state & 0x8000) | ((point.x * height + point.x + point.y) as u16);
             r.push(point);
             point += DIRS[i]
         }
@@ -118,13 +114,10 @@ impl Map{
     ///初始化地图,刷新格子状态
     pub fn init(&mut self){
         let barriers = self.barriers.clone();
-        let height = self.height;
         let point_id = move |target: Point2| -> u16{
             (target.x * target.y).max(0) as u16
         };
-        let height = height as u16;
         self.grid.iter_mut().for_each(|point|{
-            point.set_height(height);
             let id = point_id(point.clone());
             point.set_state(Point2::generate_state(barriers.iter().find(|b| **b == id).is_some(), id));
         });
@@ -197,7 +190,6 @@ impl Map{
     ///将点绑定到地图上,设置阻挡和序号等
     #[inline]
     pub fn bind_point(&self, point: &mut Point2){
-        point.set_height(self.height as u16);
         let id = self.get_point_id(*point);
         let state = Point2::generate_state(self.barriers.iter().find(|b| **b == id).is_some(), id);
         point.set_state(state);

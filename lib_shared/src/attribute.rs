@@ -17,9 +17,7 @@ pub enum EAttributeType{
     ///最大数量
     MaxCount,
 }
-///因为配置里面属性定义有0,这个0暂定位和6一样都是行动力
 impl From<i32> for EAttributeType{    
-    ///因为配置里面属性定义有0,这个0暂定位和6一样都是行动力
     fn from(attr: i32) -> Self {        
         use EAttributeType::*;
         match attr{

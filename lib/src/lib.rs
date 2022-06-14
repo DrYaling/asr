@@ -13,7 +13,7 @@ pub mod server;
 pub use server::{
     SocketHandler,
     channel::{AsyncTransportChannel},
-    session::{SocketMessage, rpc_rep_state as RpcRepState, SessionTransport}, 
+    session::{SocketMessage, SessionTransport}, 
     handler::{SessionHandler, MsgSendHandler, AsyncSessionHandler, SyncSessionHandler, SyncSocketHandler, AsyncSocketHandler, Transporter, AsyncSocketSendHandler, TransportReceiver}, 
     context::{AsyncContext, AsyncContextImpl}
 };

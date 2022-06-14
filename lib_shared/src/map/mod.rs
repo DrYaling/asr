@@ -6,16 +6,14 @@ use std::ops::{Add, AddAssign, Mul, Sub};
 
 pub use map::*;
 
-static DIRS: [Position;6] = [
+static DIRS: [Position; 4] = [
+    Position::new(0, 0),
     Position::new(1, 0),
-    Position::new(1, -1),
-    Position::new(0, -1),
-    Position::new(-1, 0),
-    Position::new(-1, 1),
-    Position::new(0, 1)
+    Position::new(0, 1),
+    Position::new(1, 1)
 ];
 pub fn base_dir_index(dir: &Position) -> usize{ 
-    for index in 0..6{
+    for index in 0..4{
         if &DIRS[index] == dir{
             return index;
         }
@@ -52,7 +50,7 @@ impl Position{
     pub fn sqr_magnitude(&self) -> f64{         
         (self.magnitude() as f64).sqrt()
     }
-    ///六边形格子距离
+    //格子距离
     pub fn distance<'a, T: 'static>(&self, other: &'a T) -> u32 where Self: From<&'a T>{
         let other: Self = Self::from(other);
         [(self.x-other.x).abs(),
@@ -104,14 +102,13 @@ pub struct Point2{
     ///第15位: 阻挡
     /// 0-14位: 序号
     state: u16,
-    pub height: u16,
 }
 impl Point2{
     pub const fn new(x: i32, y: i32) -> Self{
-        Self{x,y, state: 0, height: 0}
+        Self{x,y, state: 0}
     }
     pub const fn with_pos(x: i32, y: i32, state: u16) -> Self{
-        Self{x, y, state, height: 0}
+        Self{x, y, state}
     }
     pub fn generate_state(barrier: bool, id: u16) -> u16{
         crate::if_else!(barrier,1,0) << 15 | id
@@ -125,10 +122,6 @@ impl Point2{
         (self.magnitude() as f64).sqrt()
     }
     #[inline]
-    pub fn set_height(&mut self, height: u16){
-        self.height = height;
-    }
-    #[inline]
     pub fn set_state(&mut self, state: u16){
         self.state= state;
     }
@@ -138,9 +131,6 @@ impl Point2{
     pub fn barrier(&self) -> bool { (self.state & 0x8000) != 0}
     #[inline]
     pub fn id(&self) -> u16 { self.state & 0x7FFF }
-    ///已绑定地图
-    #[inline]
-    pub fn binded(&self) -> bool { self.height > 0 }
     ///六边形格子距离
     #[inline]
     pub fn distance(&self, other: &Self) -> u32{
@@ -194,21 +184,21 @@ impl Mul<usize> for Point2{
     type Output = Point2;
 
     fn mul(self, rhs: usize) -> Self::Output {
-        Self{x: self.x * (rhs as i32), y: self.y * (rhs as i32), state: self.state, height: self.height}
+        Self{x: self.x * (rhs as i32), y: self.y * (rhs as i32), state: self.state}
     }
 }
 impl Mul<i32> for Point2{
     type Output = Point2;
 
     fn mul(self, rhs: i32) -> Self::Output {
-        Self{x: self.x * rhs, y: self.y * rhs, state: self.state, height: self.height}
+        Self{x: self.x * rhs, y: self.y * rhs, state: self.state}
     }
 }
 impl Add for Point2{
     type Output = Point2;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self{x: self.x + rhs.x, y: self.y + rhs.y, state: self.state, height: self.height}
+        Self{x: self.x + rhs.x, y: self.y + rhs.y, state: self.state}
     }
 }
 impl AddAssign for Point2{
@@ -221,7 +211,7 @@ impl Sub for Point2{
     type Output = Point2;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self{x: self.x - rhs.x, y: self.y - rhs.y, state: self.state, height: self.height}
+        Self{x: self.x - rhs.x, y: self.y - rhs.y, state: self.state}
     }
 }
 impl PartialEq<Position> for Point2{

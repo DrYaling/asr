@@ -169,7 +169,7 @@ impl ByteBuffer{
     }
     ///trim if read pos is half size of buffer size
     pub fn trim_step(&mut self){
-        if self.rpos > self.buffer.len() /2{
+        if self.rpos > self.buffer.len() / 2{
             self.trim()
         }
     }

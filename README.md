@@ -48,3 +48,5 @@ Readme will be updated once the code is commited, more details will be here.
   # plat_server
   
   simple server example
+  # else
+    an async mode service will be added latter, show up the socket drive mode service

@@ -88,12 +88,6 @@ impl<T: Sized + TransferTemplate> SessionTransport<T> {
         })
     }
 }
-pub mod rpc_rep_state{
-    ///rpc response state active- waiting for response
-    pub const ACTIVE: i32 = 1;
-    /// rpc state invalid
-    pub const DIRTY: i32 = 2;
-}
 pub trait HandlerBoxed {
     fn call_box(self, pack: Box<dyn Message>) -> Result<(),std::io::Error>;
 }
@@ -307,7 +301,7 @@ impl<T, R, S: Sized + Clone + 'static + Send + Sync + Debug + TransferTemplate> 
                     if pack.read_from_buffer(&mut self.buffer).is_ok(){    
                         pack.crc()?;                                                                                            
                         let pack = self.current_pack.take();     
-                        self.packet_count.overflowing_add(1).0;
+                        self.packet_count.wrapping_add(1);
                         match self.on_msg(pack.unwrap()) {
                             Ok(_) => (),
                             Err(e) => {
@@ -341,7 +335,7 @@ impl<T, R, S: Sized + Clone + 'static + Send + Sync + Debug + TransferTemplate> 
                             self.buffer.read_complete(header_size);
                             if pack.read_from_buffer(&mut self.buffer).is_ok(){  
                                 pack.crc()?;                          
-                                self.packet_count.overflowing_add(1).0;
+                                self.packet_count.wrapping_add(1);
                                 match self.on_msg(pack){
                                     Ok(_) => (),
                                     Err(e) => {
