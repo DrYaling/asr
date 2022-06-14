@@ -9,7 +9,6 @@ use std::ops::Deref;
 use std::{future::{Future}, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
 use mio::*;
 use sqlx::*;
-use crate::error::ErrorLogger;
 use super::*;
 use std::task::Poll;
 use once_cell::sync::{OnceCell};
@@ -118,10 +117,10 @@ pub fn send_query(fut: BoxFuture<'static,()>)-> anyhow::Result<()>{
 }
 pub fn get_pool(db_name: &str) -> anyhow::Result<Arc<sqlx::mysql::MySqlPool>>{
     match POOL_HANDLERS.get(){
-        None => crate::error::broken_pipe().log_with("db pool not initialized"),
+        None => crate::error::broken_pipe(),
         Some(handlers) => {
             match handlers.get(db_name){
-                None => crate::error::broken_pipe().log_with(&format!("db {} not initialized",db_name)),
+                None => crate::error::broken_pipe(),
                 Some(pool)=> {
                     Ok(pool.mysql_pool.clone())
                 }

@@ -75,6 +75,7 @@ impl Map{
             map_id, width, height, barriers, grid: Self::create_map(width,height, horizontal_map), horizontal_map,
         }
     }
+    #[allow(unused)]
     #[inline]
     pub(crate) fn grid(&self) -> &Vec<Point2> { &self.grid }
     #[inline]
@@ -117,10 +118,9 @@ impl Map{
     ///初始化地图,刷新格子状态
     pub fn init(&mut self){
         let barriers = self.barriers.clone();
-        let horizontal_map = self.horizontal_map;
-        let (width, height) = (self.width, self.height);
+        let height = self.height;
         let point_id = move |target: Point2| -> u16{
-            0
+            (target.x * target.y).max(0) as u16
         };
         let height = height as u16;
         self.grid.iter_mut().for_each(|point|{
@@ -151,29 +151,20 @@ impl Map{
     }
     #[inline]
     pub fn get_point_by_id(&self, id: u16) -> Option<Point2>{
-        if id as usize> self.grid.len(){
+        if id as usize > self.grid.len(){
             return None;
         }
         self.grid.iter().find(|p| p.id() == id).cloned()
     }
+    #[allow(unused)]
+    #[inline]
     fn check_boundary(&self, target: Point2) -> bool{ 
-        let (x, y) = (target.x as f32, target.y as f32);
-        let (height, width) = (self.height as f32, self.width as f32);
-        if self.horizontal_map{
-            if_else!( y < 0f32 || y > height - 1.0 || x > width + 1.0 - (y / 2.0 + 0.5) || x < -(y / 2.0 + 0.5), 
-            false, true)
-        }
-        else{
-            if_else!(
-                x < 0.0 || y < -( x / 2.0 + 0.5) || x > width - 1.0 || y > (height - 1.0 - x / 2.0) + 0.5,
-                false, true
-            )
-        }
+        target.x >= 0 && target.x <= self.width as i32 && target.y >= 0 && target.y <= self.height as i32
     }
     ///获取点位id
     #[inline]
     fn point_id(&self, target: Point2) -> u16{
-        0
+        (target.x * target.y).max(0) as u16
     }
     ///改变格子的状态
     pub fn change_state(&mut self, grid: u16, block: bool){

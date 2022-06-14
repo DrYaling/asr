@@ -1,5 +1,5 @@
-
 //! aes crypto mod
+#![allow(unused)]
 ///encrypt data
 pub fn encrypt(mut bytes: Vec<u8>, _input: i32) -> anyhow::Result<Vec<u8>>{
     //TO BE DONE

@@ -30,7 +30,7 @@ impl Header{
         if main_code == 0 && sub_code != 1{
             main_code = 101;
         }
-        let mut flag = if_else!(compress,0x8,0) as u8;
+        let mut flag = if_else!(compress, 0x8, 0) as u8;
         // println!("flag {}", flag);
         let squence = rpc_seq.unwrap_or_default();
         flag |= if_else!(squence > 0,1,0);
@@ -137,24 +137,6 @@ impl From<&[u8]> for Header{
         }
     }
 }
-pub const DESERIALIZE_ERROR: usize = 99;
-pub const SERIALIZE_ERROR: usize = 100;
-pub const HEADER_ERROR: usize = 101;
-pub const BUFFER_SIZE_NOT_ENOUGH: usize = 102;
-#[allow(unused)]
-pub const BUFFER_RESERVE_ERROR: usize = 103;
-#[allow(unused)]
-pub const CONNECTION_FAIL: usize = 104;
-#[allow(unused)]
-pub const IO_ERROR: usize = 105;
-#[allow(unused)]
-pub const WRITE_BUFFER_ERROR: usize = 109;
-#[allow(unused)]
-pub const WORKER_NOT_STARTED: usize = 110;
-#[allow(unused)]
-pub const READ_BUFFER_ERROR: usize = 109;
-#[allow(unused)]
-pub const SOCKET_DISCONNECTED: usize = 109;
 #[allow(unused)]
 pub struct ByteBuffer{
     buffer: Vec<u8>,
@@ -196,9 +178,9 @@ impl ByteBuffer{
         self.wpos - self.rpos
     }
     ///读取数据，如果读取的长度不足，则读取失败
-    pub fn read(&mut self, buf: &mut [u8], size: usize) -> Result<usize,usize>{
+    pub fn read(&mut self, buf: &mut [u8], size: usize) -> std::io::Result<usize>{
         if self.size() < size{
-            Err(BUFFER_SIZE_NOT_ENOUGH)
+            Err(std::io::ErrorKind::WouldBlock.into())
         }
         else{
             // println!("buf size {},size {}",buf.len(),size);
@@ -208,7 +190,7 @@ impl ByteBuffer{
         }
     }
     #[inline]
-    fn ensure_size(&mut self,size: usize) -> Result<(),usize>{
+    fn ensure_size(&mut self,size: usize) -> std::io::Result<()>{
         if self.buffer.capacity() > self.wpos + size{
             self.buffer.resize_with(size + self.wpos,|| Default::default());
             Ok(())
@@ -234,13 +216,13 @@ impl ByteBuffer{
         &self.buffer.as_slice()[self.rpos..self.wpos]
     }
     ///read complete operation
-    pub fn read_complete(&mut self, size: usize)->Result<(),usize>{
+    pub fn read_complete(&mut self, size: usize) -> std::io::Result<()>{
         if self.rpos + size <= self.wpos{
             self.rpos += size;
             Ok(())
         }
         else{
-            Err(READ_BUFFER_ERROR)
+            Err(std::io::ErrorKind::InvalidData.into())
         }
     }
     pub fn write_complete(&mut self, size: usize){
@@ -330,9 +312,9 @@ impl PackBuffer{
             buffer: Vec::with_capacity(header.size() as usize), header
         }
     }
-    pub fn from(header: &[u8]) -> Result<Self,usize>{
+    pub fn from(header: &[u8]) -> std::io::Result<Self>{
         if header.len() < Header::header_size(header){
-            Err(HEADER_ERROR)
+            Err(std::io::ErrorKind::InvalidData.into())
         }
         else{
             let header = unpack_header(header)?;
@@ -345,7 +327,7 @@ impl PackBuffer{
         }
     }
     ///尝试从buffer中一次性读取所有数据，如果buffer数据不足，则读取失败
-    pub fn read_from_buffer(&mut self, buffer: &mut ByteBuffer) -> Result<usize,usize>{
+    pub fn read_from_buffer(&mut self, buffer: &mut ByteBuffer) -> std::io::Result<usize>{
         buffer.read(self.buffer.as_mut_slice(), self.header.size() as usize)
     }
     pub fn read_from_bytes(&mut self, buffer: &[u8]) -> Result<usize,usize>{
@@ -360,9 +342,6 @@ impl PackBuffer{
     /// 校验
     pub fn crc(&self) -> std::io::Result<()> {
         let mut crc = self.header.crc;
-        for b in &self.buffer {
-            crc = crc.overflowing_add(*b).0
-        }
         if crc == 0 {
             Ok(())
         } else {
@@ -371,11 +350,11 @@ impl PackBuffer{
         }
     }
     ///解包
-    pub fn unpack<T: protobuf::Message>(&self) -> Result<T,usize>{
+    pub fn unpack<T: protobuf::Message>(&self) -> std::io::Result<T>{
         //println!("unpack buffer {}- {:?}",self.buffer.len(),self.buffer.as_slice());
         T::parse_from_bytes(self.buffer.as_slice()).map_err(|e|{
             log_error!("decode msg fail {:?}",e);
-            self::DESERIALIZE_ERROR
+            std::io::Error::from(std::io::ErrorKind::InvalidData)
         })
     }
     pub fn to_buffer(mut self) -> std::io::Result<Vec<u8>>{
@@ -392,20 +371,20 @@ impl PackBuffer{
     }
 }
 ///打包二进制
-pub fn pack<'a, T: protobuf::Message>(code: u16, sub_code: u16, data: T, rpc: Option<u32>) -> Result<Vec<u8>,usize>{    
+pub fn pack<'a, T: protobuf::Message>(code: u16, sub_code: u16, data: T, rpc: Option<u32>) -> std::io::Result<Vec<u8>>{    
     //todo compute pack size
     let data_size = data.compute_size();
     let header = Header::new(code, sub_code, data_size, data.get_cached_size() > 32*1024,rpc);
     let mut bytes = header.serialize();
     let mut body = data.write_to_bytes().map_err(|e|{
         log_error!("fail to pack data size {:?}",e);
-        self::SERIALIZE_ERROR
+        std::io::Error::from(std::io::ErrorKind::InvalidData)
     })?;
     bytes.append(&mut body);
     Ok(bytes)
 }
 ///打包二进制
-pub fn pack_box<'a>(code: u16, sub_code: u16, data: Box<dyn protobuf::Message>, rpc: Option<u32>) -> Result<Vec<u8>,usize>{    
+pub fn pack_box<'a>(code: u16, sub_code: u16, data: Box<dyn protobuf::Message>, rpc: Option<u32>) -> std::io::Result<Vec<u8>>{    
     //todo compute pack size
     let data_size = data.compute_size();
     let header = Header::new(code, sub_code, data_size, data.get_cached_size() > 32*1024,rpc);
@@ -413,7 +392,7 @@ pub fn pack_box<'a>(code: u16, sub_code: u16, data: Box<dyn protobuf::Message>, 
     
     let mut body = data.write_to_bytes().map_err(|e|{
         log_error!("fail to pack data size {:?}",e);
-        self::SERIALIZE_ERROR
+        std::io::Error::from(std::io::ErrorKind::InvalidData)
     })?;
     bytes.append(&mut body);
     //println!("pack opcod {}, bytes len {}, bytes {:?}",code,body.len(),&body);
@@ -422,9 +401,9 @@ pub fn pack_box<'a>(code: u16, sub_code: u16, data: Box<dyn protobuf::Message>, 
 #[allow(unused)]
 #[inline]
 ///解析header
-pub fn unpack_header<'a>(data: &'a [u8])  -> Result<Header,usize>{
+pub fn unpack_header<'a>(data: &'a [u8])  -> std::io::Result<Header>{
     if data.len() < Header::header_size(data){
-        return Err(HEADER_ERROR);
+        return Err(std::io::ErrorKind::InvalidData.into());
     } 
     let header = Header::from(data);
     Ok(header)
@@ -434,6 +413,7 @@ pub fn pack_raw<'a, T: protobuf::Message>(data:& T) -> anyhow::Result<Vec<u8>>{
     let data = data.write_to_bytes()?;
     Ok(data)
 }
+#[allow(unused)]
 ///计算check code
 fn get_crc(header_buffer: &[u8], body_buffer: &[u8]) -> u8{    
     0

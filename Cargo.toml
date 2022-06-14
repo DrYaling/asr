@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "plat_server", "lib",
+    "web_server", "lib_shared"
+]
