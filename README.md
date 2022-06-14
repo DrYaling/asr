@@ -31,7 +31,7 @@
 
 # Other:
 
-  Readme will be updated once the code is commited, more details will be here.
+  Readme will be updated once the framework updated, more details will be here.
 
   # lib  & lib_shared
   
