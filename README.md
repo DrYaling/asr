@@ -44,5 +44,5 @@
   # plat_server
   
     simple server example
-  # else
-    an async mode service will be added latter, show up the socket drive mode service
+  # explore
+    an async mode service, show up the socket drive mode service
