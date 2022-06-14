@@ -36,3 +36,15 @@ Or any discussion or suggest on this framework or for rust,welcome too.
 # Other:
 
 Readme will be updated once the code is commited, more details will be here.
+
+  # lib  & lib_shared
+  
+  shared tools and net core for server framework
+  
+  # web_server 
+  
+  simple web server example based on actix-web
+  
+  # plat_server
+  
+  simple server example
