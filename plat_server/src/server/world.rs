@@ -1,15 +1,14 @@
 //! world
 //! 
-use lib::{
+use shared::{
     SyncSessionHandler, 
-    proto::{PackBuffer}, 
-    SessionId, 
+    proto::{PackBuffer},
     timer::*
 };
 use super::world_session::{WorldSession, WorldSessionState};
 use std::collections::BTreeMap;
 use crossbeam::{channel::Receiver};
-use lib::proto;
+use shared::proto;
 pub struct WorldBuilder;
 impl WorldBuilder{
     pub fn new()-> Self{
@@ -42,10 +41,10 @@ const WORLD_EVENT_TIMER: usize = 1;
 const WORLD_EVENT_INTERVAL: i64 = 6*60*60*1000;
 pub struct World{
     ///world sessions
-    session_map: BTreeMap<SessionId,WorldSession>,
+    session_map: BTreeMap<usize,WorldSession>,
     queued_sessions: Vec<WorldSession>,
     ///player session map stores account id and player session id
-    player_sessions: BTreeMap<u64,SessionId>,
+    player_sessions: BTreeMap<u64,usize>,
     ///periodic timer trigger
     // periodic_timer: Vec<PeriodicTimer>,
     ///interval timers
@@ -58,17 +57,17 @@ impl World{
     pub(crate) fn start(&mut self) -> Result<(),std::io::Error>{
         //world event just trigger 6 hours after server restart
         self.timers.push(IntervalTimer::new(WORLD_EVENT_INTERVAL));
-        let mut daily = IntervalTimer::new(lib_shared::one_day_time());
+        let mut daily = IntervalTimer::new(shared::one_day_time());
         //daily reset at 4:00
         const DAILY_RESET_TIME: i64 = 4*60*60*1000;
-        let mut time_stamp = lib_shared::get_timestamp_of_today();
+        let mut time_stamp = shared::get_timestamp_of_today();
         let diff = time_stamp - DAILY_RESET_TIME;
         //set current time
         if diff > 0{
             time_stamp = diff;
         }
         else{
-            time_stamp = lib_shared::one_day_time() + diff;
+            time_stamp = shared::one_day_time() + diff;
         }
         daily.set_current(time_stamp);
         self.timers.push(daily);
@@ -99,23 +98,23 @@ impl World{
         self.session_map.insert(session.id(), session);
     }
     ///kick off player and remove this session
-    fn kick_off_session(&mut self, session: SessionId) -> std::io::Result<()>{
+    fn kick_off_session(&mut self, session: usize) -> std::io::Result<()>{
         match self.session_map.remove(&session){
             Some(session) => {
                 self.player_sessions.remove(&session.player_id());
                 let mut pack = proto::P2CMsgKickOff::new();
                 pack.set_reason(session.get_kick_off_reason());
                 info!("kick off player [{}] (session [{}]-state [{:?}]) for reason {}",session.player_id(),session.id(),session.current_state(),session.get_kick_off_reason());
-                session.send_pack(lib::proto::proto_code::DEFAULT_MAIN_CODE,crate::msg_id::KICKOFF, 0, pack)
+                session.send_pack(shared::proto::proto_code::DEFAULT_MAIN_CODE,crate::msg_id::KICKOFF, 0, pack)
             },
             None => Err(std::io::ErrorKind::NotConnected.into()),
         }
     }
     ///kick off a session
     fn kick_off_session1(session: WorldSession) -> std::io::Result<()>{
-        let mut pack = lib::proto::P2CMsgKickOff::new();
+        let mut pack = shared::proto::P2CMsgKickOff::new();
         pack.set_reason(1);
-        session.send_pack(lib::proto::proto_code::DEFAULT_MAIN_CODE,crate::msg_id::KICKOFF,0, pack)
+        session.send_pack(shared::proto::proto_code::DEFAULT_MAIN_CODE,crate::msg_id::KICKOFF,0, pack)
     }
     #[inline]
     fn recv_cmd(&self) -> Option<WorldCommand>{
@@ -191,8 +190,8 @@ impl World{
     fn handle_explore_channel_msg(&mut self, packet: PackBuffer) -> anyhow::Result<()> {
         let header = packet.header();
         match header.sub_code() as u16{
-            lib::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_RESP => {
-                let pack = packet.unpack::<lib::proto::Es2PsMsgExploreResp>()
+            shared::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_RESP => {
+                let pack = packet.unpack::<shared::proto::Es2PsMsgExploreResp>()
                 .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidData))?;
                 let player_id = pack.get_player_id();
                 if let Some(session) = self.player_sessions.get(&player_id){

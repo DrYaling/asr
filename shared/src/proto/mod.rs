@@ -13,7 +13,7 @@ pub use msg_ps_es::*;
 mod msg_c_es;
 pub use msg_c_es::*;
 pub use protobuf::Message as Message;
-pub use lib_shared::net_core::*;
+pub use crate::net_core::*;
 pub mod proto_code{
     ///公共心跳包id
     pub const HEART: u16        = 1;

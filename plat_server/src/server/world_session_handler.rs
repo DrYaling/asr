@@ -1,5 +1,5 @@
-use lib::proto::PackBuffer;
-use lib::{SyncSessionHandler, SessionTransport, SocketMessage};
+use shared::proto::PackBuffer;
+use shared::{SyncSessionHandler, SessionTransport, SocketMessage};
 #[derive(Debug)]
 pub enum WorldSessionHandlerEvent{
     Disconnected,

@@ -1,6 +1,6 @@
 //! 探索玩家临时会话
 
-use lib::{AsyncContextImpl, AsyncSessionHandler, SocketMessage, server::{context::AsyncContextBuilder, session::TransferTemplate}};
+use shared::{AsyncContextImpl, AsyncSessionHandler, SocketMessage, server::{context::AsyncContextBuilder, session::TransferTemplate}};
 
 use super::ExploreSharedChannel;
 ///玩家会话连接超时
@@ -32,14 +32,14 @@ impl AsyncContextImpl<PlayerSessionBuilder,ExploreSharedChannel> for PlayerSessi
         }
     }
 
-    async fn deal_msg(&mut self, msg: lib::SocketMessage<ExploreSharedChannel>, upper_handler: &mut Option<AsyncSessionHandler<ExploreSharedChannel>>) -> anyhow::Result<()> {
+    async fn deal_msg(&mut self, msg: shared::SocketMessage<ExploreSharedChannel>, upper_handler: &mut Option<AsyncSessionHandler<ExploreSharedChannel>>) -> anyhow::Result<()> {
         match msg{
             SocketMessage::Message(pack) => {
                 let rpc = pack.header().squence();
                 match pack.header().sub_code() as u16{
                     crate::msg_id::CREATE_EXPLORE_REQ => {
                         if let Some(handler) = upper_handler.take(){
-                            let msg = pack.unpack::<lib::proto::C2EsMsgStartExploreReq>().map_err(|_| lib::error::unpack_err())?;
+                            let msg = pack.unpack::<shared::proto::C2EsMsgStartExploreReq>().map_err(|_| shared::error::unpack_err())?;
                             let player_info = PlayerSessionInfo{
                                 player_id: msg.player_id,
                                 explore_uuid: msg.explore_uuid,
@@ -49,7 +49,7 @@ impl AsyncContextImpl<PlayerSessionBuilder,ExploreSharedChannel> for PlayerSessi
                             };
                             super::super::entry::bind_explore(player_info.player_id,player_info).await?;
                             //返回错误以停止当前会话context
-                            return lib::error::any_err(std::io::ErrorKind::ConnectionReset);
+                            return shared::error::any_err(std::io::ErrorKind::ConnectionReset);
                         }
 
                     },

@@ -1,7 +1,7 @@
 //!探索服通讯通道
 
 use futures::FutureExt;
-use lib::{SyncSessionHandler, server::{channel::{self, ServiceChannel, ChannelState}}, timer::IntervalTimer};
+use shared::{SyncSessionHandler, server::{channel::{self, ServiceChannel, ChannelState}}, timer::IntervalTimer};
 
 use crate::server::world::WorldCommand;
 pub struct ExploreChannel{
@@ -15,15 +15,15 @@ pub struct ExploreChannel{
 impl ExploreChannel{
     ///启动服务
     pub(crate) fn start_up(msg_handler: crossbeam::channel::Sender<WorldCommand>, mut try_times: i32) -> anyhow::Result<Self>{
-        let addr = format!("{}:{}",lib::config::get_str("explore_channel_ip").unwrap(),
-        lib::config::get::<i32>("explore_channel_port").expect("config explore_channel_port expected"));
+        let addr = format!("{}:{}", shared::libconfig::config::get_str("explore_channel_ip").unwrap(),
+        shared::libconfig::config::get::<i32>("explore_channel_port").expect("config explore_channel_port expected"));
         let handler = loop {
             if let Ok(conn) = channel::connect(addr.clone()){
                 break conn;
             }
             try_times -= 1;
             if try_times <= 0{
-                return lib::error::any_err(std::io::ErrorKind::BrokenPipe);
+                return shared::error::any_err(std::io::ErrorKind::BrokenPipe);
             }
             warn!("fai to connect to explore channel {}, try after 3 seconds",addr);
             std::thread::sleep(std::time::Duration::from_millis(3000));
@@ -40,10 +40,10 @@ impl ExploreChannel{
         })
     }
     pub fn reconnect_async(&mut self) -> anyhow::Result<()>{
-        let addr = format!("{}:{}",lib::config::get_str("explore_channel_ip").unwrap(),
-        lib::config::get::<i32>("explore_channel_port").expect("config explore_channel_port expected"));
+        let addr = format!("{}:{}", shared::libconfig::config::get_str("explore_channel_ip").unwrap(),
+        shared::libconfig::config::get::<i32>("explore_channel_port").expect("config explore_channel_port expected"));
         let cb = self.reconnect_callback.clone();
-        lib::db::send_query(Box::new(async move {
+        shared::db::send_query(Box::new(async move {
             while let Err(e) =  Self::reconnect(addr.clone(),cb.clone()).await{
                 info!("explore_channel {} reconnect fail!{:?}, try again after 3sec",addr,e);
                 tokio::time::sleep(std::time::Duration::from_millis(3000)).await;
@@ -113,7 +113,7 @@ impl ServiceChannel<()> for ExploreChannel{
         }
     }
 
-    fn on_packet(&mut self, packet: lib::proto::PackBuffer)-> anyhow::Result<()> {
+    fn on_packet(&mut self, packet: shared::proto::PackBuffer)-> anyhow::Result<()> {
         self.msg_handler.send(WorldCommand::ExploreMsg(packet))?;
         Ok(())
     }
@@ -127,5 +127,5 @@ impl ServiceChannel<()> for ExploreChannel{
         self.state = s;
     }
     #[inline]
-    fn client_type(&self) -> lib::proto::ChannelClientType {lib::proto::ChannelClientType::PlatServer }
+    fn client_type(&self) -> shared::proto::ChannelClientType {shared::proto::ChannelClientType::PlatServer }
 }

@@ -54,7 +54,7 @@ impl<T, S: Sized + Debug + Send + Sync + 'static + TransferTemplate> ThisChannel
     pub fn send_msg(&self,channel_id: usize, msg: SessionTransport<S>)-> anyhow::Result<()>{
         if let Some(channel) = self.session_map.get(&channel_id) {
             info!("send msg {:?} to channel {}",msg,channel_id);
-            channel.send_msg(msg).map_err(|_| lib_shared::error::send_err())?;
+            channel.send_msg(msg).map_err(|_| crate::error::send_err())?;
         }
         else{
             error!("send msg {:?} to channel {} fail, no sesion found",msg,channel_id);
@@ -136,7 +136,7 @@ impl<T, E, R, S: Sized + Debug + Send + Sync + 'static + TransferTemplate> Async
         else{
             if let Some(channel) = self.session_map.get(&channel_id) {
                 info!("send msg {:?} to channel {}",msg,channel_id);
-                channel.send(msg).map_err(|_| lib_shared::error::send_err())?;
+                channel.send(msg).map_err(|_| crate::error::send_err())?;
             }
             else{
                 error!("send msg {:?} to channel {} fail, no sesion found",msg,channel_id);

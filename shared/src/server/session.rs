@@ -68,7 +68,7 @@ impl<T: Sized + TransferTemplate> SessionTransport<T> {
     ///发送心跳
     pub fn heartbeat() -> Self{
         let mut heartbeat = crate::proto::HeartBeat::new();
-        heartbeat.set_timestamp(lib_shared::time::get_timestamp_now());
+        heartbeat.set_timestamp(crate::get_timestamp_now());
         Self{
             code: 0, 
             sub_code: crate::proto::proto_code::HEART, 

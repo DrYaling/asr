@@ -58,7 +58,7 @@ static POOL_INDEX: AtomicUsize = AtomicUsize::new(1);
 static RUNTIME: OnceCell<Arc<Runtime>> = OnceCell::new();
 ///start a database pool 
 /// ```
-/// lib::db::start_pool(vec![DbPoolInfo{db_path: "mysql://test:test0123@127.0.0.1:3306/db_test".to_string(), db_name: "db_test".to_string(),max_conn: 20}])
+/// shared::db::start_pool(vec![DbPoolInfo{db_path: "mysql://test:test0123@127.0.0.1:3306/db_test".to_string(), db_name: "db_test".to_string(),max_conn: 20}])
 /// ```
 #[allow(unused_mut)]
 pub fn start_pools(pools: Vec<DbPoolInfo>) -> Vec<PooledDbInfo>{

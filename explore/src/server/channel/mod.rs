@@ -1,6 +1,6 @@
 //! 服务通讯channel
 #![allow(unused)]
-use lib::{SessionHandler, server::{this_channel::ThisChannel}};
+use shared::{SessionHandler, server::{this_channel::ThisChannel}};
 
 pub mod battle_channel;
 pub mod channel_service;

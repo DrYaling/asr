@@ -1,11 +1,11 @@
 
-use lib::{SyncSessionHandler, proto::PackBuffer, server::{channel::{ChannelState, ServiceChannel}}, timer::IntervalTimer};
+use shared::{SyncSessionHandler, proto::PackBuffer, server::{channel::{ChannelState, ServiceChannel}}, timer::IntervalTimer};
 ///本地服务远程会话
 pub struct ChannelSession{
     handler: SyncSessionHandler<()>,
     state: ChannelState,
     heart_timer: IntervalTimer,
-    channele_type: lib::proto::ChannelClientType,
+    channele_type: shared::proto::ChannelClientType,
 }
 
 impl ChannelSession{
@@ -29,7 +29,7 @@ impl ServiceChannel<()> for ChannelSession{
             handler, 
             heart_timer: IntervalTimer::new(30*1000),
             state,
-            channele_type: lib::proto::ChannelClientType::UnDefined,
+            channele_type: shared::proto::ChannelClientType::UnDefined,
         }
     }
     fn update(&mut self, diff: i64){
@@ -57,9 +57,9 @@ impl ServiceChannel<()> for ChannelSession{
         self.state = s;
     }
     #[inline]
-    fn client_type(&self) -> lib::proto::ChannelClientType { self.channele_type.clone() }
+    fn client_type(&self) -> shared::proto::ChannelClientType { self.channele_type.clone() }
     #[inline]
-    fn set_client_type(&mut self, ct: lib::proto::ChannelClientType) {
+    fn set_client_type(&mut self, ct: shared::proto::ChannelClientType) {
         self.channele_type = ct;
     }
 }

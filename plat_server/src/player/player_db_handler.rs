@@ -1,6 +1,7 @@
 use crossbeam::channel::*;
 use futures::FutureExt;
-use lib::{db::{DbCommand, DbResult, MergeDbResult}};
+use shared::{db::{DbCommand, DbResult, MergeDbResult}};
+use shared::libconfig;
 use crate::{player::*};
 #[derive(Default, Debug)]
 pub struct DbHandler{
@@ -14,7 +15,7 @@ impl DbHandler{
         self.player_info_handler = rx.into();
         let account = account.to_string();
         let access_token = access_token.to_string();
-        lib::db::send_query(Box::new(async move {
+        shared::db::send_query(Box::new(async move {
             info!("load player info {}",account);
             tx.send(DbHandler::on_load_player(&account,&access_token,cmd).await)
             .map_err(|_| error!("fail to send player info {}",account)).ok();
@@ -23,7 +24,7 @@ impl DbHandler{
     }
     ///加载角色列表
     pub async fn load_characters(player_id: u64) -> anyhow::Result<Vec<CharacterLoader>> {
-        let pool = lib::db::get_pool("bg_db_server")?;
+        let pool = shared::db::get_pool("bg_db_server")?;
         let characters = sqlx::query_as::<_,CharacterLoader>("SELECT id,role_id,own_type,state FROM db_player_character WHERE player_id=?")
         .bind(player_id)
         .fetch_all(pool.as_ref()).await.map_err(|e| logthrow!(e,e))?;
@@ -31,7 +32,7 @@ impl DbHandler{
     }
     ///load player, if not exist, create player
     async fn on_load_player(account: &str, access_token: &str,mut cmd: DbCommand<PlayerLoginInfo>) -> DbResult<PlayerLoginInfo>{
-        let pool = lib::db::get_pool("bg_db_server").merge_to(&cmd)?;
+        let pool = shared::db::get_pool("bg_db_server").merge_to(&cmd)?;
         let result = sqlx::query_as::<_,(u64,String,String)>("SELECT id,name,access_token FROM db_player WHERE account=?")
         .bind(&account)
         .fetch_optional(pool.as_ref()).await.merge_to(&cmd).map_err(|e| logthrow!(e,e))?;
@@ -45,7 +46,7 @@ impl DbHandler{
             .bind(player_id)
             .fetch_all(pool.as_ref()).await.merge_to(&cmd).map_err(|e| logthrow!(e,e))?;
             if characters.len() == 0{
-                let default_characters = if let Some(r) = lib::libconfig::common::get_str("InitialRole"){
+                let default_characters = if let Some(r) = libconfig::common::get_str("InitialRole"){
                     let vs = r.split("|").collect::<Vec<_>>();
                     vs.iter().filter_map(|s| s.parse::<u32>().ok()).collect::<Vec<_>>()
                 }

@@ -1,11 +1,11 @@
 
-use lib::{AsyncSessionHandler, AsyncSocketHandler, AsyncSocketSendHandler, SessionTransport, TransportReceiver, Transporter, proto::PackBuffer, server::{channel::{AsyncServiceChannel, AsyncServiceDataHandler, ChannelState, DefaultAsyncServiceDataHandler}}, timer::IntervalTimer};
+use shared::{AsyncSessionHandler, AsyncSocketHandler, AsyncSocketSendHandler, SessionTransport, TransportReceiver, Transporter, proto::PackBuffer, server::{channel::{AsyncServiceChannel, AsyncServiceDataHandler, ChannelState, DefaultAsyncServiceDataHandler}}, timer::IntervalTimer};
 ///本地服务远程会话
 pub struct ChannelSession{
     handler: AsyncSessionHandler<()>,
     state: ChannelState,
     heart_timer: IntervalTimer,
-    channele_type: lib::proto::ChannelClientType,
+    channele_type: shared::proto::ChannelClientType,
     channel_handler: AsyncSocketSendHandler<()>,
     channel_recv: Option<AsyncSocketHandler<()>>, 
     transporter: Option<Transporter<()>>,
@@ -45,7 +45,7 @@ impl AsyncServiceChannel<SessionTransport<()>, ChannelDataSession, ()> for Chann
             handler, 
             heart_timer: IntervalTimer::new(30*1000),
             state,
-            channele_type: lib::proto::ChannelClientType::UnDefined,
+            channele_type: shared::proto::ChannelClientType::UnDefined,
             channel_handler: tx.into(), 
             channel_recv: rx.into(),
             transporter: sh.into(), 
@@ -58,7 +58,7 @@ impl AsyncServiceChannel<SessionTransport<()>, ChannelDataSession, ()> for Chann
         info!("handle explore channel msg {}",header.sub_code());
         match header.sub_code() as u16{
             //创建探索
-            lib::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_REQ => {
+            shared::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_REQ => {
                 crate::server::entry::on_channel_msg(crate::server::entry::ServerChannelEvent::ChannelMsg((self.session_id(),packet))).await?;
             },
             opcode => {
@@ -77,9 +77,9 @@ impl AsyncServiceChannel<SessionTransport<()>, ChannelDataSession, ()> for Chann
     fn set_state(&mut self, s: ChannelState) {
         self.state = s;
     }
-    fn client_type(&self) -> lib::proto::ChannelClientType { self.channele_type.clone() }
+    fn client_type(&self) -> shared::proto::ChannelClientType { self.channele_type.clone() }
     #[inline]
-    fn set_client_type(&mut self, ct: lib::proto::ChannelClientType) {
+    fn set_client_type(&mut self, ct: shared::proto::ChannelClientType) {
         self.channele_type = ct;
     }
 
@@ -96,7 +96,7 @@ impl AsyncServiceChannel<SessionTransport<()>, ChannelDataSession, ()> for Chann
         self.channel_recv.take().expect("splite_channel_handler fail, can not splite twice")
     }
 
-    async fn deal_channel_msg(&mut self, msg: lib::SocketMessage<()>) -> anyhow::Result<()> {
+    async fn deal_channel_msg(&mut self, msg: shared::SocketMessage<()>) -> anyhow::Result<()> {
         warn!("deal_channel_msg {:?} ignored",msg);
         Ok(())
     }

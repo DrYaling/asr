@@ -51,7 +51,7 @@ impl MapBuilder{
 }
 ///```
 /// //地图数据
-/// let map = lib::map::MapBuilder::new(10,10).with_barriers(vec![10,20,32]).build();
+/// let map = shared::map::MapBuilder::new(10,10).with_barriers(vec![10,20,32]).build();
 /// ```
 #[derive(Debug, Default)]
 pub struct Map{

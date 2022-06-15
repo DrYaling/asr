@@ -2,10 +2,10 @@
 #![allow(unused)]
 use std::collections::{BTreeMap, HashMap};
 use std::ops::BitAnd;
-use lib::{AsyncSessionHandler, SessionTransport};
-use lib::{proto::EExploreEventType};
-use lib_shared::attribute::{AttributeBinder, EAttributeType};
-use lib_shared::map::Point2;
+use shared::{AsyncSessionHandler, SessionTransport};
+use shared::{proto::EExploreEventType};
+use shared::attribute::{AttributeBinder, EAttributeType};
+use shared::map::Point2;
 use chrono::prelude::*;
 use super::{ExploreSharedChannel};
 use super::explore_event::{ExploreEvent, GameEventState, EventInfo};
@@ -20,7 +20,7 @@ pub mod explore_player_dirty_flag{
 pub struct ExplorePlayer{
     player_id: u64,
     ///位置
-    position: lib_shared::map::Point2,
+    position: shared::map::Point2,
     ///食物
     pub food: i32,
     pub max_food: u32,
@@ -53,9 +53,9 @@ impl ExplorePlayer{
         info.food = food as i32;
         info.player_id = player_id;
         info.trigger_enabled = true;
-        info.fov = lib::libconfig::common::get_value("DisperseFog").unwrap_or(4);
-        info.speed = lib::libconfig::common::get_value("MovementSpeed").unwrap_or(10);
-        let configs = lib::libconfig::partner_config::load_partner_configs(|(id,_)| characters.contains(*id));
+        info.fov = shared::libconfig::common::get_value("DisperseFog").unwrap_or(4);
+        info.speed = shared::libconfig::common::get_value("MovementSpeed").unwrap_or(10);
+        let configs = shared::libconfig::partner_config::load_partner_configs(|(id,_)| characters.contains(*id));
         info.characters= characters.iter().map(|id|{
             let config = configs.get(id);
             let mut attr = AttributeBinder::default();
@@ -75,7 +75,7 @@ impl ExplorePlayer{
             }
         }).collect();
         info.gm_authority = gm_authority;
-        info.max_food = lib::libconfig::common::get_value("DefaultFood").unwrap_or(100);
+        info.max_food = shared::libconfig::common::get_value("DefaultFood").unwrap_or(100);
 
         info
     }
@@ -93,7 +93,7 @@ impl ExplorePlayer{
             },
             None => {
                 error!("player {} disconnected", self.player_id);
-                lib::error::broken_pipe()
+                shared::error::broken_pipe()
             }
         }
     }
@@ -175,10 +175,10 @@ pub struct ExploreCharacter{
 }
 impl ExploreCharacter{
     #[inline]
-    pub fn get_base_attrs(&self) -> ::protobuf::RepeatedField<lib::proto::CharacterAttribute> {
+    pub fn get_base_attrs(&self) -> ::protobuf::RepeatedField<shared::proto::CharacterAttribute> {
         self.attribute_binder.iter().enumerate().filter_map(|(idx, value)| {
             let value = *value;
-            Some(lib::proto::CharacterAttribute{ attribute_type: idx as i32, value: value, ..Default::default()})
+            Some(shared::proto::CharacterAttribute{ attribute_type: idx as i32, value: value, ..Default::default()})
         }).collect()
     }
     #[inline]

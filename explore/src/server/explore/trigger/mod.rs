@@ -1,4 +1,4 @@
-use lib_shared::map::{Point2, Map};
+use shared::map::{Point2, Map};
 use super::explore_event::{ExploreEvent, EventInfo};
 use super::explore_player::ExplorePlayer;
 pub struct ExploreTrigger{
@@ -16,7 +16,7 @@ impl ExploreTrigger {
             event_index: 1,
             trigger_events: Default::default(),
             player_position: Default::default(),
-            player_speed: lib::libconfig::common::get_value("MovementSpeed").unwrap_or(10),
+            player_speed: shared::libconfig::common::get_value("MovementSpeed").unwrap_or(10),
         }
     }
     ///initialize

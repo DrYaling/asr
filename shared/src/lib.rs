@@ -8,6 +8,8 @@ extern crate log;
 #[macro_use]
 extern crate anyhow;
 #[macro_use]
+extern crate async_trait;
+#[macro_use]
 pub mod macros;
 pub mod map;
 pub mod timer;
@@ -23,6 +25,25 @@ pub mod aes;
 pub use time::{get_timestamp_now, get_timestamp_of_today, one_day_time, get_current_ms};
 mod weight;
 pub use weight::WeightCalculater;
+pub mod proto;
+pub mod redis;
+pub mod db;
+pub mod logger;
+pub mod server;
+pub use server::{
+    SocketHandler,
+    channel::{AsyncTransportChannel},
+    session::{SocketMessage, SessionTransport}, 
+    handler::{SessionHandler, MsgSendHandler, AsyncSessionHandler, SyncSessionHandler, SyncSocketHandler, AsyncSocketHandler, Transporter, AsyncSocketSendHandler, TransportReceiver}, 
+    context::{AsyncContext, AsyncContextImpl}
+};
+
+static SESSION_TOKEN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(1);
+#[allow(unused)]
+pub(crate) fn get_session_token(worker_token: usize) -> mio::Token{
+    let session =  (SESSION_TOKEN.fetch_add(1, std::sync::atomic::Ordering::Release) & 0x0000_0000_FFFF_FFFF) | (worker_token & 0x0000_0000_FFFF_FFFF) << 32;
+    mio::Token(session)
+}
 ///条件检查
 #[allow(unused)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

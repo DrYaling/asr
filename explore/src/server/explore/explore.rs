@@ -4,13 +4,13 @@ use super::db_handler::ExploreInfo;
 use super::explore_player::{explore_player_dirty_flag, ExplorePlayer};
 use super::{db_handler::DbHandler, player_session::PlayerSessionInfo};
 use crate::server::explore::explore_player::CharacterState;
-use lib::{
+use shared::{
     proto::PackBuffer,
     server::context::AsyncContextBuilder,
     timer::IntervalTimer,
     AsyncContextImpl, AsyncSessionHandler, SessionTransport, SocketMessage,
 };
-use lib_shared::map::Map;
+use shared::map::Map;
 use rand::Rng;
 use super::trigger::{ExploreTrigger};
 type ExploreSessionTransport = SessionTransport<()>;
@@ -19,7 +19,7 @@ type ExploreSessionTransport = SessionTransport<()>;
 pub struct ExploreSharedChannel {
     proxy: Option<tokio::sync::mpsc::UnboundedSender<SocketMessage<()>>>,
 }
-impl lib::server::session::TransferTemplate for ExploreSharedChannel {
+impl shared::server::session::TransferTemplate for ExploreSharedChannel {
     fn get_proxy(&mut self) -> Option<tokio::sync::mpsc::UnboundedSender<SocketMessage<()>>> {
         self.proxy.take()
     }
@@ -131,10 +131,10 @@ impl Explore {
             player_id + config_id as u64,
             rand::thread_rng().gen::<u64>()
         );
-        let map = lib_shared::map::MapBuilder::new(1, 10, 10, false).with_barriers(vec![1, 2, 3, 4, 5]).build();
-        let mut pos = lib_shared::map::Point2::new(47,-7);
+        let map = shared::map::MapBuilder::new(1, 10, 10, false).with_barriers(vec![1, 2, 3, 4, 5]).build();
+        let mut pos = shared::map::Point2::new(47,-7);
         map.bind_point(&mut pos);
-        let explore_id = super::get_uuid(lib_shared::libconfig::config::get("server_id").unwrap_or_default());
+        let explore_id = super::get_uuid(shared::libconfig::config::get("server_id").unwrap_or_default());
         log_info!("create explore {} for player {} with map {}, birth location {:?}", explore_id, player_id, map.map_id(), pos);
         let (tx ,rx) = tokio::sync::mpsc::unbounded_channel();
         let (tsender ,treceiver) = tokio::sync::mpsc::unbounded_channel();
@@ -146,7 +146,7 @@ impl Explore {
                 player_id,
                 config_id,
                 pos,
-                lib::libconfig::common::get_value("DefaultFood").unwrap_or(100),
+                shared::libconfig::common::get_value("DefaultFood").unwrap_or(100),
                 &characters,
                 gm_authority,
             ),
@@ -157,10 +157,10 @@ impl Explore {
             map,
             event_trigger: ExploreTrigger::new(config_id),
             event_handler: None,
-            move_cost: lib::libconfig::common::get_value("MoveCost").unwrap_or(5),
-            move_unit_cost: lib::libconfig::common::get_value("MoveUnitCost").unwrap_or(1),
-            move_cost_hp: lib::libconfig::common::get_value("JourneyHealthLimit").unwrap_or(5),
-            move_unit_cost_hp: lib::libconfig::common::get_value("MovementHealthlimit")
+            move_cost: shared::libconfig::common::get_value("MoveCost").unwrap_or(5),
+            move_unit_cost: shared::libconfig::common::get_value("MoveUnitCost").unwrap_or(1),
+            move_cost_hp: shared::libconfig::common::get_value("JourneyHealthLimit").unwrap_or(5),
+            move_unit_cost_hp: shared::libconfig::common::get_value("MovementHealthlimit")
                 .unwrap_or(1),
             saved: false,
             save_time: 0,
@@ -200,7 +200,7 @@ impl Explore {
         &mut self,
         player_info: PlayerSessionInfo,
     ) -> anyhow::Result<AsyncSessionHandler<ExploreSharedChannel>> {
-        let mut resp = lib::proto::Es2CMsgStartExploreResp::new();
+        let mut resp = shared::proto::Es2CMsgStartExploreResp::new();
         let PlayerSessionInfo {
             session_handler,
             player_id,
@@ -219,30 +219,31 @@ impl Explore {
                 (player_info.player_id, token),
                 (&self.token, self.player_id)
             );
-            resp.set_result(lib::proto::StartExploreResult::NO_EXPLORE_FOUND);
+            resp.set_result(shared::proto::StartExploreResult::NO_EXPLORE_FOUND);
             let ret = session_handler.send(SessionTransport::new(
-                lib::proto::proto_code::DEFAULT_MAIN_CODE,
+                shared::proto::proto_code::DEFAULT_MAIN_CODE,
                 crate::msg_id::CREATE_EXPLORE_REQ_RESULT,
                 rpc,
                 Box::new(resp),
             ));
             session_handler.send(SessionTransport::disconnect()).ok();
-            return lib::error::broken_pipe();
+            return shared::error::broken_pipe();
         } else {
+            self.event_trigger.init()?;
             self.player_session = session_handler.id();
             self.map.bind_point(&mut self.player_info.position_mut());
             //TODO 后面再改,出生点需要保存数据库
             let pos = self.player_info.position();
             self.player_info.origin_pos = pos;
             self.state = ExploreState::Exploring;
-            resp.set_result(lib::proto::StartExploreResult::START_SUCCESS);
+            resp.set_result(shared::proto::StartExploreResult::START_SUCCESS);
             resp.set_seed(rand::thread_rng().gen::<i32>());
-            let mut locate = lib::proto::Point2::new();
+            let mut locate = shared::proto::Point2::new();
             locate.x = pos.x;
             locate.y = pos.y;
             resp.set_locate(locate);
             self.event_trigger.trigger(&mut self.player_info, &mut self.map, pos);
-            let mut sync = lib::proto::Es2CMsgExploreSync::new();
+            let mut sync = shared::proto::Es2CMsgExploreSync::new();
             //如果探索没有结束,这里会没有角色列表
             self.player_info
                 .set_dirty(explore_player_dirty_flag::CHARACTER);
@@ -273,7 +274,7 @@ impl Explore {
             self.player_info.visiable_points.clear();
             info!("EXPLORE {:?} connect resp \r\n{:?}", self.log_info(), resp);
             session_handler.send(SessionTransport::new(
-                lib::proto::proto_code::DEFAULT_MAIN_CODE,
+                shared::proto::proto_code::DEFAULT_MAIN_CODE,
                 crate::msg_id::CREATE_EXPLORE_REQ_RESULT,
                 rpc,
                 Box::new(resp),
@@ -292,7 +293,7 @@ impl Explore {
         let (code, rpc) = (header.sub_code() as u16, header.squence());
         let msg = match code {
             crate::msg_id::EXPLORE_MOVE_REQ => self.handle_move(packet).await?,
-            lib::proto::proto_code::HEART => {
+            shared::proto::proto_code::HEART => {
                 self.heart_timer.reset();
                 return Ok(());
             }
@@ -316,13 +317,13 @@ impl Explore {
             //延迟15秒后终止探索
             tokio::time::sleep(std::time::Duration::from_secs(15)).await;
             self.disconnect()?;
-            return lib::error::any_err(std::io::ErrorKind::ConnectionAborted);
+            return shared::error::any_err(std::io::ErrorKind::ConnectionAborted);
         }
         Ok(())
     }
     
     fn save_explore(&mut self) {
-        self.save_time = lib::time::get_current_ms() as u64 + SAVE_EXPLORE_INTERVAL;
+        self.save_time = shared::time::get_current_ms() as u64 + SAVE_EXPLORE_INTERVAL;
         //TODO
         //保存探索信息
         DbHandler::save_explore_info(self.into())
@@ -349,7 +350,7 @@ impl Explore {
     
     async fn pack_player_info(
         &mut self,
-        packet: &mut lib::proto::Es2CMsgExploreSync,
+        packet: &mut shared::proto::Es2CMsgExploreSync,
     ) -> anyhow::Result<()> {
         if self.player_info.flush_dirty(
             explore_player_dirty_flag::CHARACTER
@@ -359,14 +360,14 @@ impl Explore {
                 .player_info
                 .characters
                 .iter()
-                .map(|c| lib::proto::ExploreCharacterInfo {
+                .map(|c| shared::proto::ExploreCharacterInfo {
                     id: c.config_id,
                     state: c.state as i32,
                     attributes: c.get_base_attrs(),
                     ..Default::default()
                 })
                 .collect();
-            let mut pack = lib::proto::Es2cMsgExploreCharacters::new();
+            let mut pack = shared::proto::Es2cMsgExploreCharacters::new();
             pack.set_characters(characters);
             packet.set_characters(pack);
         }
@@ -374,7 +375,7 @@ impl Explore {
             .player_info
             .flush_dirty(explore_player_dirty_flag::POSITION)
         {
-            let mut locate = lib::proto::Point2::new();
+            let mut locate = shared::proto::Point2::new();
             let cur = self.player_info.position();
             locate.x = cur.x;
             locate.y = cur.y;
@@ -394,7 +395,7 @@ impl Explore {
     ///包装角色和玩家信息
     async fn pack_sync_msg(
         &mut self,
-        packet: &mut lib::proto::Es2CMsgCurrentEventResp,
+        packet: &mut shared::proto::Es2CMsgCurrentEventResp,
     ) -> anyhow::Result<()> {
         //判断角色是否还有有效角色 如果无可用角色,探索结束
         if self
@@ -421,24 +422,24 @@ impl Explore {
         match self.state {
             ExploreState::Finished => {
                 info!("player {} finished explore", self.player_id);
-                let mut msg = lib::proto::Es2PsMsgExploreEndSync::new();
-                msg.set_result(lib::proto::ExploreResult::FINISHED);
+                let mut msg = shared::proto::Es2PsMsgExploreEndSync::new();
+                msg.set_result(shared::proto::ExploreResult::FINISHED);
                 msg.set_player_id(self.player_id);
                 Some(ExploreSessionTransport::new(
-                    lib::proto::proto_code::DEFAULT_MAIN_CODE,
-                    lib::proto::proto_code::msg_id_es_ps::EXPLORE_END_SYNC,
+                    shared::proto::proto_code::DEFAULT_MAIN_CODE,
+                    shared::proto::proto_code::msg_id_es_ps::EXPLORE_END_SYNC,
                     0,
                     Box::new(msg),
                 ))
             }
             ExploreState::Failed => {
                 info!("player {} failed explore", self.player_id);
-                let mut msg = lib::proto::Es2PsMsgExploreEndSync::new();
-                msg.set_result(lib::proto::ExploreResult::FAILED);
+                let mut msg = shared::proto::Es2PsMsgExploreEndSync::new();
+                msg.set_result(shared::proto::ExploreResult::FAILED);
                 msg.set_player_id(self.player_id);
                 Some(ExploreSessionTransport::new(
-                    lib::proto::proto_code::DEFAULT_MAIN_CODE,
-                    lib::proto::proto_code::msg_id_es_ps::EXPLORE_END_SYNC,
+                    shared::proto::proto_code::DEFAULT_MAIN_CODE,
+                    shared::proto::proto_code::msg_id_es_ps::EXPLORE_END_SYNC,
                     0,
                     Box::new(msg),
                 ))
@@ -448,11 +449,11 @@ impl Explore {
     }
     async fn handle_move(&mut self, packet: PackBuffer) -> anyhow::Result<ExploreSessionTransport> {
         let pack = packet
-            .unpack::<lib::proto::C2EsMsgExploreMoveReq>()
-            .map_err(|_| lib::error::unpack_err())?;
+            .unpack::<shared::proto::C2EsMsgExploreMoveReq>()
+            .map_err(|_| shared::error::unpack_err())?;
         let pp = pack.get_target().clone();
-        let mut target = lib_shared::map::Point2::new(pp.x, pp.y);
-        let mut resp = lib::proto::Es2CMsgExploreMoveResp::new();
+        let mut target = shared::map::Point2::new(pp.x, pp.y);
+        let mut resp = shared::proto::Es2CMsgExploreMoveResp::new();
         let pos = self.player_info.position();
         //如果事件队列不为空,且当前事件未完成,不允许移动
         if !self.event_trigger.empty(){
@@ -460,7 +461,7 @@ impl Explore {
             resp.set_result(2);
         }
         else if let Some(mut path)= self.map.get_path(pos, target, &|pos_next| self.player_info.visiable_points_local.contains(pos_next), &|p| p == &target){
-            let mut sync = lib::proto::Es2CMsgExploreSync::new();
+            let mut sync = shared::proto::Es2CMsgExploreSync::new();
             self.player_info.prev_pos = pos;
             self.map.bind_point(&mut target);
             info!("explore {:?} player {:?} move to {:?}, path {:?}", self.log_info(), pos, target, path);
@@ -557,7 +558,7 @@ impl Explore {
             self.pack_player_info(&mut sync).await.ok();
             resp.set_explore_info(sync);
             resp.set_result(0);
-            let mut p = lib::proto::Point2::new();
+            let mut p = shared::proto::Point2::new();
             p.x = target.x;
             p.y = target.y;
             resp.set_move_target(p);
@@ -570,7 +571,7 @@ impl Explore {
         }
         info!("explore {:?} on move resp {:?}", self.log_info(), resp);
         Ok(SessionTransport::new(
-            lib::proto::proto_code::DEFAULT_MAIN_CODE,
+            shared::proto::proto_code::DEFAULT_MAIN_CODE,
             crate::msg_id::EXPLORE_MOVE_RESP,
             packet.header().squence,
             Box::new(resp),
@@ -581,10 +582,10 @@ impl Explore {
         packet: PackBuffer,
     ) -> anyhow::Result<ExploreSessionTransport> {
         let pack = packet
-            .unpack::<lib::proto::C2EsMsgBattleResultReq>()
-            .map_err(|_| lib::error::unpack_err())?;
+            .unpack::<shared::proto::C2EsMsgBattleResultReq>()
+            .map_err(|_| shared::error::unpack_err())?;
         info!("explore {:?} battle req {:?}", self.log_info(), pack);
-        let mut resp = lib::proto::Es2CMsgBattleResultResp::new();
+        let mut resp = shared::proto::Es2CMsgBattleResultResp::new();
         if self.event_trigger.empty() {
             resp.set_result(1);
         } else {
@@ -593,7 +594,7 @@ impl Explore {
         }
         info!("explore {:?} battle resp {:?}", self.log_info(), resp);
         Ok(SessionTransport::new(
-            lib::proto::proto_code::DEFAULT_MAIN_CODE,
+            shared::proto::proto_code::DEFAULT_MAIN_CODE,
             crate::msg_id::EXPLORE_BATTLE_RESULT_RESP,
             packet.header().squence(),
             Box::new(resp),
@@ -699,7 +700,7 @@ impl AsyncContextImpl<ExploreBuilder, ()> for Explore {
         handler: &mut Option<AsyncSessionHandler<()>>,
     ) -> anyhow::Result<()> {
         if handler.is_none() {
-            return lib::error::broken_pipe();
+            return shared::error::broken_pipe();
         }
         let handler = handler.as_mut().unwrap();
         match msg {
@@ -724,12 +725,12 @@ impl AsyncContextImpl<ExploreBuilder, ()> for Explore {
     ) -> anyhow::Result<()> {
         if self.event_handler.is_none() {
             error!("call event_handler before start explore context!");
-            return lib::error::broken_pipe();
+            return shared::error::broken_pipe();
         }
         if self.save_time == 0 {
-            self.save_time = lib::time::get_current_ms() as u64 + SAVE_EXPLORE_INTERVAL;
+            self.save_time = shared::time::get_current_ms() as u64 + SAVE_EXPLORE_INTERVAL;
         }
-        let mut dura = self.save_time as i64 - lib::time::get_current_ms();
+        let mut dura = self.save_time as i64 - shared::time::get_current_ms();
         //100毫秒内直接保存
         if dura <= 100 {
             self.save_explore();
@@ -758,24 +759,24 @@ impl AsyncContextImpl<ExploreBuilder, ()> for Explore {
                     },
                     Some(SocketMessage::ChannelMessage((channel_id,packet))) => {
                         info!("explore {:?} recv msg {} - {:?}", self.log_info(), channel_id, packet);
-                        if packet.header().sub_code() == lib::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_REQ{
-                            let _ = packet.unpack::<lib::proto::Ps2EsMsgExploreReq>().map_err(|_| lib::error::unpack_err())?;
+                        if packet.header().sub_code() == shared::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_REQ{
+                            let _ = packet.unpack::<shared::proto::Ps2EsMsgExploreReq>().map_err(|_| shared::error::unpack_err())?;
                             self.reconnect(channel_id);
-                            let mut resp = lib::proto::Es2PsMsgExploreResp::new();
-                            resp.set_result(lib::proto::ExploreCreateResult::SUCCESS);
+                            let mut resp = shared::proto::Es2PsMsgExploreResp::new();
+                            resp.set_result(shared::proto::ExploreCreateResult::SUCCESS);
                             resp.set_explore_uuid(self.get_explore_uuid());
                             resp.set_player_id(self.player_id);
                             resp.set_access_token(self.access_token().to_string());
                             crate::server::channel::channel_service::send_msg(SessionTransport::new(
-                                lib::proto::proto_code::DEFAULT_MAIN_CODE,
-                                lib::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_RESP,
+                                shared::proto::proto_code::DEFAULT_MAIN_CODE,
+                                shared::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_RESP,
                                 packet.header().squence(),
                                 Box::new(resp)),
                                 self.get_plat_server()).map_err(|e| logthrow!(e,e)).ok();
                         } 
-                        else if packet.header().sub_code() == lib::proto::proto_code::msg_id_es_ps::FIGHT_SUCCESS_RESP{
-                            let pack = packet.unpack::<lib::proto::Ps2EsMsgFightSucessResp>().map_err(|_| lib::error::unpack_err())?;
-                            if pack.result == lib::proto::ExploreCreateResult::SUCCESS {
+                        else if packet.header().sub_code() == shared::proto::proto_code::msg_id_es_ps::FIGHT_SUCCESS_RESP{
+                            let pack = packet.unpack::<shared::proto::Ps2EsMsgFightSucessResp>().map_err(|_| shared::error::unpack_err())?;
+                            if pack.result == shared::proto::ExploreCreateResult::SUCCESS {
                                 for e in pack.exp {
                                     self.player_info.add_exp(e.get_exp(), e.get_config_id());
                                 }
@@ -801,9 +802,9 @@ impl AsyncContextImpl<ExploreBuilder, ()> for Explore {
     #[inline]
     #[allow(unused)]
     fn update_handler(&mut self) -> Option<AsyncSessionHandler<()>> {
-        lib::SessionHandler::new(
+        shared::SessionHandler::new(
             self.explore_id as usize,
-            lib::SocketHandler::new(self.tsender.clone(), self.receiver.take().unwrap()),
+            shared::SocketHandler::new(self.tsender.clone(), self.receiver.take().unwrap()),
         )
         .into()
     }
@@ -822,7 +823,7 @@ fn test_timeout() {
         pub create_time: chrono::DateTime<chrono::Local>,
         pub token: String,
         pub events: Vec<crate::server::explore::db_handler::ExploreEventInfo>,
-        pub position: Option<sqlx::types::Json<lib_shared::map::Point2>>,
+        pub position: Option<sqlx::types::Json<shared::map::Point2>>,
         pub food: i32,
         pub unique_events: Vec<(i32, u32)>,
     }
@@ -846,7 +847,7 @@ fn test_timeout() {
     }
     println!("def {:?}", ExploreInfo::default());
     use tokio::time;
-    lib::db::start_pools(vec![lib::db::DbPoolInfo {
+    shared::db::start_pools(vec![shared::db::DbPoolInfo {
         db_path: "mysql://banagame:banagame123@172.16.8.219:3306/bg_db_server".to_string(),
         db_name: "bg_db_server".to_string(),
         max_conn: 20,

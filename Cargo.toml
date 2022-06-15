@@ -1,6 +1,4 @@
 [workspace]
 members = [
-    "plat_server", "lib",
-    "web_server", "lib_shared",
-    "explore"
+    "plat_server", "web_server", "shared", "explore"
 ]

@@ -6,8 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lib_shared = {path="../lib_shared"}
-lib = {path="../lib"}
+shared = {path="../shared"}
 async-std = "1.7"
 async-trait = "0.1.41"
 chrono = "0.4"

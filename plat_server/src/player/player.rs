@@ -2,9 +2,10 @@
 //! 
 use std::collections::VecDeque;
 
-use lib::{*, proto::PackBuffer};
+use shared::{Transporter, MsgSendHandler, proto::{self, PackBuffer}, SessionTransport, libconfig::config};
 
 use super::DbHandler;
+
 #[derive(Debug,Copy, Clone, PartialEq, Eq)]
 pub struct ExploreReq{
     pub time: i64,
@@ -36,20 +37,20 @@ impl PlayerLoginInfo{
 }
 #[derive(Debug)]
 pub struct Player{
-    guid: Guid,
+    guid: u64,
     ///account id of player
     player_id: u64,
     player_info: Option<PlayerLoginInfo>,
     ///操作列表
     operation_queue: VecDeque<PlayerOperation>,
     db_handler: DbHandler,
-    msg_handler: lib::MsgSendHandler<Transporter<()>,()>,
+    msg_handler: MsgSendHandler<Transporter<()>,()>,
 }
 #[allow(unused)]
 impl Player{
-    pub fn new(guid: u64, msg_handler: lib::MsgSendHandler<Transporter<()>, ()>) -> Self {
+    pub fn new(guid: u64, msg_handler: MsgSendHandler<Transporter<()>, ()>) -> Self {
         Self{
-            guid: Guid::create(ObjectType::Player, 0, guid),
+            guid,
             player_id: 0,
             player_info: None,
             operation_queue: VecDeque::default(),
@@ -96,10 +97,10 @@ impl Player{
         match op{
             PlayerOperation::CreateExplore(req) => {
                 info!("player {} create_explore fail, explore req timeout",self.get_name());
-                let mut create_req = lib::proto::P2CMsgCreateExploreResp::new();
-                create_req.set_result(lib::proto::CreateExploreReqResult::FAIL);
+                let mut create_req = proto::P2CMsgCreateExploreResp::new();
+                create_req.set_result(proto::CreateExploreReqResult::FAIL);
                 self.msg_handler.send(SessionTransport::new(
-                    lib::proto::proto_code::DEFAULT_MAIN_CODE,
+                    proto::proto_code::DEFAULT_MAIN_CODE,
                     crate::msg_id::CREATE_EXPLORE_REQ_RESULT, 
                     req.rpc,
                     Box::new(create_req))).map_err(|_| std::io::Error::from(std::io::ErrorKind::BrokenPipe)).ok();
@@ -117,26 +118,26 @@ impl Player{
                     _ => false,
                 }).is_some(){
                     info!("player {} create_explore fail, explore is creating",self.get_name());
-                    let mut create_req = lib::proto::P2CMsgCreateExploreResp::new();
-                    create_req.set_result(lib::proto::CreateExploreReqResult::FAIL);
+                    let mut create_req = proto::P2CMsgCreateExploreResp::new();
+                    create_req.set_result(proto::CreateExploreReqResult::FAIL);
                     self.msg_handler.send(SessionTransport::new(
-                        lib::proto::proto_code::DEFAULT_MAIN_CODE,
+                        proto::proto_code::DEFAULT_MAIN_CODE,
                         crate::msg_id::CREATE_EXPLORE_REQ_RESULT, 
                         rpc,
                         Box::new(create_req))).map_err(|_| std::io::Error::from(std::io::ErrorKind::BrokenPipe))?;
                 }
                 else{
-                    match msg.unpack::<lib::proto::C2PMsgCreateExploreReq>(){
+                    match msg.unpack::<proto::C2PMsgCreateExploreReq>(){
                         Ok(pack) => {
-                            let mut req = lib::proto::Ps2EsMsgExploreReq::new();
-                            let characters = lib::server::worker::block_on(DbHandler::load_characters(self.player_id))?;
+                            let mut req = proto::Ps2EsMsgExploreReq::new();
+                            let characters = shared::server::worker::block_on(DbHandler::load_characters(self.player_id))?;
                             req.set_characters(characters.iter().map(|info| info.role_id).collect());
                             req.set_explore_id(1);
                             req.set_plat_server_id(1);
                             req.set_player_id(self.player_id());
                             crate::server::channel::explore_manager::send_msg(SessionTransport::new(
-                                lib::proto::proto_code::DEFAULT_MAIN_CODE,
-                                lib::proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_REQ, 0, Box::new(req)))?;
+                                proto::proto_code::DEFAULT_MAIN_CODE,
+                                proto::proto_code::msg_id_es_ps::CREATE_EXPLORE_REQ, 0, Box::new(req)))?;
                             self.operation_queue.push_back(PlayerOperation::CreateExplore(ExploreReq{rpc,time: chrono::Local::now().timestamp_millis()}));
 
                         },
@@ -161,17 +162,17 @@ impl Player{
             PlayerOperation::CreateExplore(_) => true,
             _ => false,
         }).map(|(idx,info)| (idx,info.clone())){
-            let mut create_req = lib::proto::P2CMsgCreateExploreResp::new();
+            let mut create_req = proto::P2CMsgCreateExploreResp::new();
             match resp.get_result(){
                 proto::ExploreCreateResult::SUCCESS => {
-                    create_req.set_result(lib::proto::CreateExploreReqResult::SUCCESS);
+                    create_req.set_result(proto::CreateExploreReqResult::SUCCESS);
                     create_req.set_explore_uuid(resp.get_explore_uuid());
                     create_req.set_access_token(resp.access_token);
-                    create_req.set_server_ip(lib::config::get_str("explore_server_ip").unwrap_or_default());
-                    create_req.set_server_port(lib::config::get("explore_server_port").unwrap_or_default());
+                    create_req.set_server_ip(config::get_str("explore_server_ip").unwrap_or_default());
+                    create_req.set_server_port(config::get("explore_server_port").unwrap_or_default());
                 },
                 proto::ExploreCreateResult::FAIL => {
-                    create_req.set_result(lib::proto::CreateExploreReqResult::FAIL);
+                    create_req.set_result(proto::CreateExploreReqResult::FAIL);
                 },
             }
             let rpc = match op.1 {
@@ -179,7 +180,7 @@ impl Player{
                 _ => 0,
             };
             self.msg_handler.send(SessionTransport::new(
-                lib::proto::proto_code::DEFAULT_MAIN_CODE,
+                proto::proto_code::DEFAULT_MAIN_CODE,
                 crate::msg_id::CREATE_EXPLORE_REQ_RESULT, 
                 rpc,
                 Box::new(create_req))).map_err(|_| std::io::Error::from(std::io::ErrorKind::BrokenPipe))?;

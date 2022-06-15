@@ -1,8 +1,8 @@
 use crossbeam::channel::Sender;
-use lib::{SessionTransport, server::channel::{ChannelState, ServiceChannel}};
+use shared::{SessionTransport, server::channel::{ChannelState, ServiceChannel}};
 use once_cell::sync::OnceCell;
 use crate::server::world::WorldCommand;
-use lib_shared::boxed::MutexArc;
+use shared::boxed::MutexArc;
 use super::{explore_channel::ExploreChannel};
 static EXPLORE_CLIENT: OnceCell<MutexArc<ExploreChannel>> = OnceCell::new();
 ///启动探索服务通讯通道

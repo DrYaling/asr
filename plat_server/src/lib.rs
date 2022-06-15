@@ -1,7 +1,7 @@
 //! this is a demo project of sync mode server
 #[allow(unused_imports)]
 #[macro_use]
-extern crate lib_shared;
+extern crate shared;
 #[macro_use]
 extern crate log;
 extern crate anyhow;

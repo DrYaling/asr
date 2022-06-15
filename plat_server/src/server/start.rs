@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 use std::sync::{Mutex};
 use std::sync::atomic::*;
 use super::world::{WorldBuilder};
-use lib_shared::get_current_ms;
+use shared::get_current_ms;
 use once_cell::sync::{Lazy};
-use lib::{logger, SyncSessionHandler};
+use shared::{logger, SyncSessionHandler};
 static WORLD_LOOP_COUNTER: AtomicU64 = AtomicU64::new(0);
 const WORLD_SLEEP_CONST: u64 = 50;
 static LOOP_TIMER: std::sync::atomic::AtomicU32 = AtomicU32::new(0);
@@ -58,9 +58,9 @@ pub fn start() -> anyhow::Result<()>{
     let log_dir = env::current_dir().map_err(|e| -> std::io::Error {error!("failed to get current directory: {:?}",e);std::io::ErrorKind::BrokenPipe.into()})?.display().to_string();
     logger::init(&log_dir,"PlatServer".to_string(), false).map_err(|e| {error!("failed to initialize logger: {}",e);2usize}).map_err(|_| -> std::io::Error {std::io::ErrorKind::BrokenPipe.into()})?;
     
-    lib::config::config_path(Some("config/plat_server.ini"));
+    shared::libconfig::config::config_path(Some("config/plat_server.ini"));
     
-    lib::server::worker::set_sync_session_handler(Box::new(|session: Box<(dyn std::any::Any + std::marker::Send + std::marker::Sync + 'static)>|{
+    shared::server::worker::set_sync_session_handler(Box::new(|session: Box<(dyn std::any::Any + std::marker::Send + std::marker::Sync + 'static)>|{
         match session.downcast::<SyncSessionHandler<()>>() {
             Ok(result) => {
                 SESSION_QUEUE.lock().unwrap().push_back(*result);
@@ -69,30 +69,30 @@ pub fn start() -> anyhow::Result<()>{
             _ => (),
         }
     }));
-    lib::libconfig::common::load_config("configs/json/Common.json")?;
-    let _: String = lib::config::get_str("explore_server_ip").expect("fail to load explore_server_ip from config");
-    let _: i32 = lib::config::get("explore_server_port").expect("fail to load explore_server_port from config");
+    shared::libconfig::common::load_config("configs/json/Common.json")?;
+    let _: String = shared::libconfig::config::get_str("explore_server_ip").expect("fail to load explore_server_ip from config");
+    let _: i32 = shared::libconfig::config::get("explore_server_port").expect("fail to load explore_server_port from config");
     
-    let _: String = lib::config::get_str("battle_server_ip").expect("fail to load battle_server_ip from config");
-    let _: i32 = lib::config::get("battle_server_port").expect("fail to load battle_server_port from config");
+    let _: String = shared::libconfig::config::get_str("battle_server_ip").expect("fail to load battle_server_ip from config");
+    let _: i32 = shared::libconfig::config::get("battle_server_port").expect("fail to load battle_server_port from config");
     
-    let ip: String = lib::config::get_str("bind_ip").expect("fail to load ip from config");
-    let port: i32 = lib::config::get("bind_port").expect("fail to load port from config");
-    lib::server::worker::init(0)?;
-    lib::server::worker::run::<()>(&(ip+":"+&port.to_string()),true);
-    //lib::server::worker::run::<()>(&(ip+":"+&port.to_string()),true);   
-    lib::db::start_pools(vec![lib::db::DbPoolInfo{db_path: lib::config::get_str("player_db").expect("fail to load db_path"), db_name: "bg_db_server".to_string(),max_conn: 20}]);
+    let ip: String = shared::libconfig::config::get_str("bind_ip").expect("fail to load ip from config");
+    let port: i32 = shared::libconfig::config::get("bind_port").expect("fail to load port from config");
+    shared::server::worker::init(0)?;
+    shared::server::worker::run::<()>(&(ip+":"+&port.to_string()),true);
+    //shared::server::worker::run::<()>(&(ip+":"+&port.to_string()),true);   
+    shared::db::start_pools(vec![shared::db::DbPoolInfo{db_path: shared::libconfig::config::get_str("player_db").expect("fail to load db_path"), db_name: "bg_db_server".to_string(),max_conn: 20}]);
     world_loop()?;
     Ok(())
 }
 #[allow(unused)]
 ///stop world 
 pub fn stop() -> Result<(),std::io::Error>{
-    lib::server::worker::stop();
+    shared::server::worker::stop();
     Ok(())
 }
 #[inline]
 pub fn stopped() -> bool{
     //socket 服务关闭
-    lib::server::worker::stopped()
+    shared::server::worker::stopped()
 }

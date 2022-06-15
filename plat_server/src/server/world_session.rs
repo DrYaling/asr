@@ -1,6 +1,6 @@
-use lib::db::DbCommand;
-use lib::proto::PackBuffer;
-use lib::{proto::Message, timer::*, SessionTransport, SyncSessionHandler};
+use shared::db::DbCommand;
+use shared::proto::PackBuffer;
+use shared::{proto::Message, timer::*, SessionTransport, SyncSessionHandler};
 use crate::player::*;
 use super::world_session_handler;
 ///max ms time for sessions to keep offline state
@@ -173,15 +173,15 @@ impl WorldSession{
     fn on_msg(&mut self, msg: PackBuffer){
         let header = msg.header();
         let code = header.sub_code();
-        if code != lib::proto::proto_code::HEART {
+        if code != shared::proto::proto_code::HEART {
             info!("world session received msg {}",header.sub_code());
         }
         match code{
-            lib::proto::proto_code::HEART => {
+            shared::proto::proto_code::HEART => {
                 self.reset_heart_timer();
             },
             crate::msg_id::MSG_LOGIN => {
-                match msg.unpack::<lib::proto::C2PMsgLogin>(){
+                match msg.unpack::<shared::proto::C2PMsgLogin>(){
                     Ok(login) if login.account.len() > 1 => {
                         self.state = WorldSessionState::Loading(0);
                         info!("Player {} recv login message [{}] access [{}]",self.session_id,login.get_account(), login.get_access_token());
@@ -205,7 +205,7 @@ impl WorldSession{
                 }
             },
             crate::msg_id::LOGIN_SUCCESS => {
-                match msg.unpack::<lib::proto::C2PMsgLoginSuccess>(){
+                match msg.unpack::<shared::proto::C2PMsgLoginSuccess>(){
                     Ok(_) => {
                         self.state = WorldSessionState::Normal;
                         self.heart_timer.reset();
@@ -234,17 +234,17 @@ impl WorldSession{
         match self.state{
             WorldSessionState::Loading(time) => {
                 if let Ok(result)= self.player.db_handler().try_get_player_info(){
-                    let mut resp = lib::proto::P2CMsgLoginResp::new();
-                    let rpc = match lib::db::unwrap_cmd(result).flat(){
+                    let mut resp = shared::proto::P2CMsgLoginResp::new();
+                    let rpc = match shared::db::unwrap_cmd(result).flat(){
                         Ok((rpc,player)) => {        
                             info!("player [{}] load success after {} mills",self.player_id(),time);                    
                             self.state = WorldSessionState::Normal;
                             self.player.init(player.into());
-                            resp.set_result(lib::proto::ELoginRetResp::RR_SUCCESS);
+                            resp.set_result(shared::proto::ELoginRetResp::RR_SUCCESS);
                             resp.set_playerId(self.player.player_id());
                             resp.set_characters(self.player.get_characters().map(|list|{
                                 list.iter().map(|cha|{
-                                    let mut c = lib::proto::P2cMsgLoginCharacter::new();
+                                    let mut c = shared::proto::P2cMsgLoginCharacter::new();
                                     c.set_uuid(cha.id);
                                     c.set_own_type(cha.own_type);
                                     c.set_role_id(cha.role_id);
@@ -257,12 +257,12 @@ impl WorldSession{
                         Err(e) => {
                             self.kick_off_reason = 4;
                             self.state = WorldSessionState::KickOff;
-                            resp.set_result(lib::proto::ELoginRetResp::RR_ERROR);
+                            resp.set_result(shared::proto::ELoginRetResp::RR_ERROR);
                             info!("load player fail, no data found");
                             e
                         }
                     };
-                    if let Err(_) = self.session_handler.send(SessionTransport::new(lib::proto::proto_code::DEFAULT_MAIN_CODE,crate::msg_id::MSG_LOGIN_RESP, rpc, Box::new(resp))){
+                    if let Err(_) = self.session_handler.send(SessionTransport::new(shared::proto::proto_code::DEFAULT_MAIN_CODE,crate::msg_id::MSG_LOGIN_RESP, rpc, Box::new(resp))){
                         info!("Player {} load success, but response fail", self.player.get_name());
                         self.state = WorldSessionState::KickOff;
                     }
@@ -271,7 +271,7 @@ impl WorldSession{
             _ => (),
         }
     }
-    pub fn on_explore_create_resp(&mut self, resp: lib::proto::Es2PsMsgExploreResp)  -> anyhow::Result<()>{
+    pub fn on_explore_create_resp(&mut self, resp: shared::proto::Es2PsMsgExploreResp)  -> anyhow::Result<()>{
         self.player.on_explore_create_resp(resp)
     } 
 }

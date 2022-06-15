@@ -33,7 +33,7 @@
 
   Readme will be updated once the framework updated, more details will be here.
 
-  # lib  & lib_shared
+  # shared
   
     shared tools and net core for server framework
   
@@ -46,3 +46,7 @@
     simple server example
   # explore
     an async mode service, show up the socket drive mode service
+
+# Tools And Client Demo
+
+    [GOTO REP](https://github.com/DrYaling/asr_tool_and_client)

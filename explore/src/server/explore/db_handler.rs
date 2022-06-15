@@ -1,4 +1,4 @@
-use lib_shared::map::Point2;
+use shared::map::Point2;
 use sqlx::{Row, mysql::MySqlRow};
 use futures::FutureExt;
 #[derive(Debug, sqlx::FromRow, Clone)]
@@ -96,7 +96,7 @@ impl DbHandler{
     ///查询玩家登录信息
     pub fn save_explore_info(explore: ExploreInfo)-> anyhow::Result<()>{
         //暂时关闭探索保存功能
-        lib::db::send_query(Box::new(async move {
+        shared::db::send_query(Box::new(async move {
             DbHandler::on_save_explore(&explore).await
             .map_err(|e| error!("fail {:?} to save explore info {:?}",e,explore)).ok();
         }).boxed())?;
@@ -104,7 +104,7 @@ impl DbHandler{
     }
     ///load player, if not exist, create player
     async fn on_save_explore(explore: &ExploreInfo) -> anyhow::Result<()>{
-        let pool = lib::db::get_pool("db_explore")?;
+        let pool = shared::db::get_pool("db_explore")?;
         let _time = if_else!(explore.state == EXPLORE_STATE_FINISHED,Some(chrono::Local::now()),None);
         //暂不保存探索信息
         let mut trans = pool.begin().await.map_err(|e| logthrow!(e,e))?;
@@ -145,7 +145,7 @@ impl DbHandler{
     ///加载或者创建探索
     pub async fn on_create_explore(player_id: u64, explore_id: u32, token: &str, base_point: Point2) -> anyhow::Result<ExploreInfo>{
         info!("load explore {:?} ", (player_id, explore_id, token));
-        let pool = lib::db::get_pool("db_explore")?;
+        let pool = shared::db::get_pool("db_explore")?;
         let current = sqlx::query_as::<_,ExploreInfo>("SELECT * FROM db_explore WHERE player_id=? AND state=0")
         .bind(&player_id)
         .fetch_optional(pool.as_ref()).await.map_err(|e| logthrow!(e,e))?;
@@ -162,7 +162,7 @@ impl DbHandler{
             current
         }
         else{
-            let food = lib::libconfig::common::get_value("DefaultFood").unwrap_or(100);
+            let food = shared::libconfig::common::get_value("DefaultFood").unwrap_or(100);
             let query = sqlx::query("INSERT INTO db_explore (player_id,explore_id,token,food,`position`) VALUES(?,?,?,?,?)")
             .bind(player_id).bind(explore_id).bind(token).bind(food).bind(serde_json::to_string(&base_point)?)
             .execute(pool.as_ref()).await.map_err(|e| logthrow!(e,e))?;
@@ -183,7 +183,7 @@ impl DbHandler{
     }
     ///保存已入队角色
     pub async fn save_character(player_id: u64, charactes: &Vec<u32>) -> anyhow::Result<()>{
-        let pool = lib::db::get_pool("db_explore")?;
+        let pool = shared::db::get_pool("db_explore")?;
         for cid in charactes {
             let count = sqlx::query_as::<_,(i32,)>("SELECT COUNT(*) FROM db_player_character WHERE player_id=? AND role_id=?")
             .bind(player_id).bind(cid)
@@ -200,7 +200,7 @@ impl DbHandler{
     }
     ///quit explore ,ignore error event at present
     pub async fn on_quit_explore(explore_id: u64) -> anyhow::Result<()>{
-        let pool = lib::db::get_pool("db_explore")?;
+        let pool = shared::db::get_pool("db_explore")?;
         sqlx::query("UPDATE db_explore SET state=2 WHERE id=?")
         .bind(explore_id)
         .execute(pool.as_ref()).await.map_err(|e| logthrow!(e,e))?;

@@ -1,8 +1,8 @@
 //! 探索事件
 
 use std::fmt::Debug;
-use lib_shared::map::Point2;
-use lib::proto::EExploreEventType;
+use shared::map::Point2;
+use shared::proto::EExploreEventType;
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum GameEventState{
     Unfinished,
@@ -67,12 +67,12 @@ impl ExploreEvent{
         }
     }
 }
-impl Into<lib::proto::Es2CMsgEventSync> for &ExploreEvent{
-    fn into(self) -> lib::proto::Es2CMsgEventSync {
-        let mut locate = lib::proto::Point2::new();
+impl Into<shared::proto::Es2CMsgEventSync> for &ExploreEvent{
+    fn into(self) -> shared::proto::Es2CMsgEventSync {
+        let mut locate = shared::proto::Point2::new();
         locate.x = self.position.x;
         locate.y = self.position.y;
-        lib::proto::Es2CMsgEventSync{
+        shared::proto::Es2CMsgEventSync{
             location: protobuf::SingularPtrField::some(locate),
             event_type: self.event_type, 
             event_id: self.event_id,
@@ -81,9 +81,9 @@ impl Into<lib::proto::Es2CMsgEventSync> for &ExploreEvent{
         }
     }
 }
-impl Into<lib::proto::Es2cMsgExploreNewEvent> for &ExploreEvent{
-    fn into(self) -> lib::proto::Es2cMsgExploreNewEvent {
-        lib::proto::Es2cMsgExploreNewEvent{
+impl Into<shared::proto::Es2cMsgExploreNewEvent> for &ExploreEvent{
+    fn into(self) -> shared::proto::Es2cMsgExploreNewEvent {
+        shared::proto::Es2cMsgExploreNewEvent{
             x: self.position.x,
             y: self.position.y, 
             uuid: self.id,
