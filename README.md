@@ -48,5 +48,4 @@
     an async mode service, show up the socket drive mode service
 
 # Tools And Client Demo
-
-    [GOTO REP](https://github.com/DrYaling/asr_tool_and_client)
+   [CLICK HERE](https://github.com/DrYaling/asr_tool_and_client)
