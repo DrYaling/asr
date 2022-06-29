@@ -18,9 +18,10 @@ const MAX_SIZE: usize   = 0x1000_0000; //取一半
 const MAX_SIZE: usize   = 0x1_0000_0000_0000; //取一半
 ///lock state of node
 #[cfg(not(target_pointer_width="64"))]
-const LOCK_STATE: usize = 0x4000_0000;
+const LOCK_FLAG: usize = 0x4000_0000;
 #[cfg(target_pointer_width="64")]
-const LOCK_STATE: usize = 0x4_0000_0000_0000;
+const LOCK_FLAG: usize = 0x4_0000_0000_0000;
+const LOCK_MASK: usize = LOCK_FLAG | MAX_SIZE;
 ///mutable box with inner atomic state lock
 pub struct MutableBox<T>{
     mutex: AtomicUsize,
@@ -109,8 +110,7 @@ impl<'a,T,B: LockableBox> DerefMut for MutBox<'a,T,B>{
 }
 impl<'a,T, B> Drop for MutBox<'a,T,B> where B: LockableBox{
     fn drop(&mut self) {
-        let sub_count = if self.ref_box.get_ref() >= MAX_SIZE{ MAX_SIZE }else{ 1 };
-        self.ref_box.locker().fetch_sub(sub_count, Ordering::Release);
+        self.ref_box.locker().fetch_sub(MAX_SIZE, Ordering::Release);
         self.ref_box.notify_all();
     }
 }
@@ -138,7 +138,7 @@ impl<T> MutableBox<T>{
     ///blocking get reference
     pub fn get(&self, time_out: Option<i64>) -> Option<RefBox<T,Self>>{
         let current = self.ref_count();
-        if current < MAX_SIZE && self.mutex.compare_exchange(current, current + 1, Ordering::Release, Ordering::Relaxed).is_ok(){
+        if current < MAX_SIZE && self.mutex.compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok(){
             let ref_data = unsafe{ &*self.data.get()};
             RefBox{
                 data: ref_data,
@@ -153,11 +153,13 @@ impl<T> MutableBox<T>{
             let back_off = Backoff::new();
             loop {
                 let current = self.ref_count();
-                let next = current + 1;
-                let prev = current;
-                //wait for next loop check
-                if let Ok(_) = self.mutex.compare_exchange(prev, next, Ordering::Release, Ordering::Relaxed){
-                    break;
+                if current < MAX_SIZE{
+                    let prev = current;
+                    let next = current + 1;
+                    //wait for next loop check
+                    if let Ok(_) = self.mutex.compare_exchange(prev, next, Ordering::SeqCst, Ordering::SeqCst){
+                        break;
+                    }
                 }
                 if !back_off.is_completed(){
                     back_off.snooze();
@@ -199,8 +201,7 @@ impl<T> MutableBox<T>{
     
     //blocking get mut reference
     pub fn get_mut(&self, time_out: Option<i64>) -> Option<MutBox<T, Self>> {
-        // info!("get mut {}",self.inner_ref_count());
-        if self.mutex.compare_exchange(0, MAX_SIZE, Ordering::Release, Ordering::Relaxed).is_ok(){
+        if self.mutex.compare_exchange(0, MAX_SIZE, Ordering::SeqCst, Ordering::SeqCst).is_ok(){
             let ref_data = unsafe{ &mut *self.data.get()};
             MutBox{
                 data: ref_data,
@@ -208,22 +209,20 @@ impl<T> MutableBox<T>{
             }.into()
         }
         else{
-            //lock
-            self.mutex.fetch_or(LOCK_STATE, Ordering::Release);
-            let next = MAX_SIZE | LOCK_STATE;
-            let expected = LOCK_STATE;
+            self.mutex.fetch_or(LOCK_FLAG, Ordering::Release);
+            // let expected = LOCK_STATE;
             let instance = std::time::Instant::now();
             let mut error_once = false;
             let mut locker = None;
             let mut time_out_dur = std::time::Duration::from_millis(time_out.unwrap_or(500) as u64);
             let time_out_cond = time_out.unwrap_or_default() > 0;
-            let warn_dur = std::time::Duration::from_secs(5).as_millis();
             let back_off = Backoff::new();
-            // info!("lower route for mut lock expected {},next {}, current {}",expected,next,self.inner_ref_count());
             loop {
+                if self.ref_count() < MAX_SIZE{
+                    self.mutex.fetch_or(LOCK_FLAG, Ordering::Release);
+                }
                 //wait for next loop check
-                let ret = self.mutex.compare_exchange(expected, next, Ordering::Release, Ordering::Relaxed);
-                if ret.is_err(){
+                if let Err(rc) = self.mutex.compare_exchange(LOCK_FLAG, LOCK_MASK, Ordering::Release, Ordering::Relaxed){
                     if !back_off.is_completed(){
                         back_off.snooze();
                         continue;
@@ -235,6 +234,7 @@ impl<T> MutableBox<T>{
                             time_out_dur = std::time::Duration::from_millis(rest_time as u64);
                         }
                         else{
+                            self.mutex.fetch_and(!LOCK_FLAG, Ordering::Release);
                             return None;
                         }
                     }
@@ -246,19 +246,19 @@ impl<T> MutableBox<T>{
                     locker = mtx.into();
                     let elapsed = instance.elapsed().as_millis();
                     if time_out_cond && _rt.timed_out(){
-                        self.mutex.fetch_and(!LOCK_STATE, Ordering::Release);
+                        self.mutex.fetch_and(!LOCK_FLAG, Ordering::Release);
                         log_error!("fail to aquire element ,time out for {} mills",elapsed);
                         return None;
                     }
                     else if time_out_cond{
                         if time_out.unwrap() as u128 <= elapsed{
-                            self.mutex.fetch_and(!LOCK_STATE, Ordering::Release);
+                            self.mutex.fetch_and(!LOCK_FLAG, Ordering::Release);
                             log_error!("fail to aquire element ,time out for {} mills",elapsed);
                             return None;
                         }
                     }
-                    if !error_once && elapsed > warn_dur{
-                        log_error!("fail to aquire element ,time out {}, ref count {}",elapsed,&ret.err().unwrap());
+                    if !error_once && elapsed > std::time::Duration::from_secs(5).as_millis(){
+                        log_error!("fail to aquire element ,time out {}, ref count {}",elapsed, rc);
                         error_once = true;
                     }
                 }
@@ -267,7 +267,7 @@ impl<T> MutableBox<T>{
                 }
             }
             //unlock
-            self.mutex.fetch_and(!LOCK_STATE, Ordering::Release);
+            self.mutex.fetch_and(!LOCK_FLAG, Ordering::Release);
             let ref_data = unsafe{ &mut *self.data.get()};
             MutBox{
                 data: ref_data,
