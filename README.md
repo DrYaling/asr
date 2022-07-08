@@ -46,6 +46,10 @@
     simple server example
   # explore
     an async mode service, show up the socket drive mode service
-
+#usage 
+    install rust environments(1.57 or later)
+    git clone https://github.com/DrYaling/asr.git
+    git submodule update --init --recursive
+    cargo run --release -p "plat_server"
 # Tools And Client Demo
    [CLICK HERE](https://github.com/DrYaling/asr_tool_and_client)

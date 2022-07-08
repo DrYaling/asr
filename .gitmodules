@@ -1,0 +1,6 @@
+[submodule "RustSharedLib"]
+	path = shared
+	url = https://github.com/DrYaling/RustSharedLib.git
+[submodule "shared"]
+	path = shared
+	url = https://github.com/DrYaling/RustSharedLib.git
