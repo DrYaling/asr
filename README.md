@@ -14,6 +14,8 @@
     2.High performance concurrency and 'safe' language features.
 
     3.Good branch stuctures and error(or Try trait) statement.
+    
+    4.Make me understand that I wasn't the programmer I thought I was.
 
   Then the last one,no gc without extro memory management as c/c++, and 'hardly' crash unless we do like self destruction.
 
